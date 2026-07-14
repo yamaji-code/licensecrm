@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isAllowedEmail } from "@/lib/auth";
 
 /**
  * リクエストごとにセッションを更新し、未ログインなら /login へリダイレクトする。
@@ -40,6 +41,15 @@ export async function updateSession(request: NextRequest) {
   const isAuthRoute =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/auth");
+
+  // ログイン済みでも許可リスト外のメールならサインアウトして締め出す
+  if (user && !isAllowedEmail(user.email)) {
+    await supabase.auth.signOut();
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/login";
+    redirectUrl.searchParams.set("error", "forbidden");
+    return NextResponse.redirect(redirectUrl);
+  }
 
   if (!user && !isAuthRoute) {
     const redirectUrl = request.nextUrl.clone();

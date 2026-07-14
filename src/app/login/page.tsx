@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -9,6 +9,17 @@ export default function LoginPage() {
     "idle",
   );
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    const error = new URLSearchParams(window.location.search).get("error");
+    if (error === "forbidden") {
+      setStatus("error");
+      setMessage("このメールアドレスはログインを許可されていません。");
+    } else if (error) {
+      setStatus("error");
+      setMessage("ログインに失敗しました。もう一度お試しください。");
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
