@@ -108,7 +108,12 @@ export default async function DealsPage({
               {deals.map((d) => (
                 <tr key={d.id} className="transition hover:bg-slate-50">
                   <td className="px-5 py-3">
-                    <p className="font-medium text-slate-900">{d.title}</p>
+                    <Link
+                      href={`/deals/${d.id}`}
+                      className="font-medium text-slate-900 hover:underline"
+                    >
+                      {d.title}
+                    </Link>
                   </td>
                   <td className="px-5 py-3 text-slate-600">
                     {d.companies?.name ?? "—"}
