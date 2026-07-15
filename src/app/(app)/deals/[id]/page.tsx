@@ -8,12 +8,14 @@ import {
   DEAL_CHANNEL,
   DEAL_STAGE,
   DEAL_STAGE_ORDER,
+  MEETING_FORMAT,
   SCENE_TAG,
   TASK_PRIORITY,
   type Company,
   type Deal,
   type DealStage,
   type KnowledgeCard,
+  type Meeting,
   type Partner,
   type StageEvent,
   type Task,
@@ -80,6 +82,7 @@ export default async function DealDetailPage({
     { data: dealData, error: dealError },
     { data: eventData },
     { data: taskData },
+    { data: meetingData },
     { data: knowledgeData },
   ] = await Promise.all([
     supabase
@@ -98,6 +101,12 @@ export default async function DealDetailPage({
       .eq("deal_id", id)
       .neq("status", "done")
       .order("due_date", { ascending: true, nullsFirst: false }),
+    // この案件に紐づくMTGログ（設計書§3の /deals/[id]「MTG一覧」要件）
+    supabase
+      .from("meetings")
+      .select("*")
+      .eq("deal_id", id)
+      .order("held_on", { ascending: false }),
     // 関連ナレッジ: このdeal自身に紐づく公開済みナレッジカードを直近3件（deals自体にscene_tagが無いため簡略化）
     supabase
       .from("knowledge_cards")
@@ -115,6 +124,7 @@ export default async function DealDetailPage({
   const deal = dealData as DealDetail;
   const stageEvents = (eventData ?? []) as StageEvent[];
   const openTasks = (taskData ?? []) as Task[];
+  const meetings = (meetingData ?? []) as Meeting[];
   const relatedKnowledge = (knowledgeData ?? []) as KnowledgeCard[];
   // 次アクション空白禁止ルールの対象（稼働/ナーチャリング/失注は対象外）
   const isActiveDeal = !CLOSED_DEAL_STAGES.includes(deal.stage);
@@ -331,6 +341,46 @@ export default async function DealDetailPage({
             </button>
           </div>
         </form>
+      </section>
+
+      {/* MTGログ（設計書§3 /deals/[id]「MTG一覧」） */}
+      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-slate-500">MTGログ</h2>
+          <Link
+            href={`/meetings/new?deal_id=${deal.id}`}
+            className="text-xs text-slate-500 hover:text-slate-900 hover:underline"
+          >
+            + MTGを記録
+          </Link>
+        </div>
+        {meetings.length > 0 ? (
+          <ul className="space-y-2">
+            {meetings.map((m) => (
+              <li
+                key={m.id}
+                className="rounded-xl border border-slate-200 p-4 text-sm"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-slate-900">{m.title}</span>
+                  <span className="flex items-center gap-3 text-xs text-slate-500">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5">
+                      {MEETING_FORMAT[m.format]}
+                    </span>
+                    {m.held_on.slice(0, 10)}
+                  </span>
+                </div>
+                {m.summary && (
+                  <p className="mt-2 whitespace-pre-wrap text-slate-700">
+                    {m.summary}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-400">MTGログなし</p>
+        )}
       </section>
 
       {/* 関連ナレッジ */}
