@@ -54,7 +54,12 @@ export default async function CompaniesPage() {
               {companies.map((c) => (
                 <tr key={c.id} className="transition hover:bg-slate-50">
                   <td className="px-5 py-3">
-                    <p className="font-medium text-slate-900">{c.name}</p>
+                    <Link
+                      href={`/companies/${c.id}`}
+                      className="font-medium text-slate-900 hover:underline"
+                    >
+                      {c.name}
+                    </Link>
                     {c.name_kana && (
                       <p className="text-xs text-slate-400">{c.name_kana}</p>
                     )}
