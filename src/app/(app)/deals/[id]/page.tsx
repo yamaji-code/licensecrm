@@ -8,10 +8,12 @@ import {
   DEAL_CHANNEL,
   DEAL_STAGE,
   DEAL_STAGE_ORDER,
+  SCENE_TAG,
   TASK_PRIORITY,
   type Company,
   type Deal,
   type DealStage,
+  type KnowledgeCard,
   type Partner,
   type StageEvent,
   type Task,
@@ -38,6 +40,14 @@ const PRIORITY_STYLE: Record<string, string> = {
   low: "text-slate-400",
   medium: "text-slate-600",
   high: "text-red-600",
+};
+
+const SCENE_TAG_STYLE: Record<string, string> = {
+  pb_product: "bg-indigo-100 text-indigo-700",
+  maker_intro: "bg-blue-100 text-blue-700",
+  pricing: "bg-amber-100 text-amber-700",
+  contract_doc: "bg-slate-200 text-slate-700",
+  other: "bg-slate-100 text-slate-500",
 };
 
 type DealDetail = Deal & {
@@ -70,6 +80,7 @@ export default async function DealDetailPage({
     { data: dealData, error: dealError },
     { data: eventData },
     { data: taskData },
+    { data: knowledgeData },
   ] = await Promise.all([
     supabase
       .from("deals")
@@ -87,6 +98,14 @@ export default async function DealDetailPage({
       .eq("deal_id", id)
       .neq("status", "done")
       .order("due_date", { ascending: true, nullsFirst: false }),
+    // 関連ナレッジ: このdeal自身に紐づく公開済みナレッジカードを直近3件（deals自体にscene_tagが無いため簡略化）
+    supabase
+      .from("knowledge_cards")
+      .select("*")
+      .eq("deal_id", id)
+      .eq("status", "published")
+      .order("published_at", { ascending: false })
+      .limit(3),
   ]);
 
   if (dealError || !dealData) {
@@ -96,6 +115,7 @@ export default async function DealDetailPage({
   const deal = dealData as DealDetail;
   const stageEvents = (eventData ?? []) as StageEvent[];
   const openTasks = (taskData ?? []) as Task[];
+  const relatedKnowledge = (knowledgeData ?? []) as KnowledgeCard[];
   // 次アクション空白禁止ルールの対象（稼働/ナーチャリング/失注は対象外）
   const isActiveDeal = !CLOSED_DEAL_STAGES.includes(deal.stage);
 
@@ -311,6 +331,38 @@ export default async function DealDetailPage({
             </button>
           </div>
         </form>
+      </section>
+
+      {/* 関連ナレッジ */}
+      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-slate-500">関連ナレッジ</h2>
+          <Link
+            href={`/meetings/new?deal_id=${deal.id}`}
+            className="text-xs text-slate-500 hover:text-slate-900 hover:underline"
+          >
+            + MTGを記録
+          </Link>
+        </div>
+        {relatedKnowledge.length > 0 ? (
+          <ul className="space-y-3">
+            {relatedKnowledge.map((k) => (
+              <li key={k.id} className="rounded-xl border border-slate-200 p-4 text-sm">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${SCENE_TAG_STYLE[k.scene_tag]}`}
+                >
+                  {SCENE_TAG[k.scene_tag]}
+                </span>
+                <p className="mt-2 font-medium text-slate-900">{k.problem}</p>
+                {k.solution && (
+                  <p className="mt-1 whitespace-pre-wrap text-slate-700">{k.solution}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-400">関連ナレッジなし</p>
+        )}
       </section>
 
       {/* ステージ変更履歴 */}
