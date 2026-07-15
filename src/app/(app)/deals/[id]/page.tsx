@@ -2,15 +2,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { changeDealStage, updateDeal } from "../actions";
+import { toggleTaskDone } from "../../tasks/actions";
 import {
+  CLOSED_DEAL_STAGES,
   DEAL_CHANNEL,
   DEAL_STAGE,
   DEAL_STAGE_ORDER,
+  TASK_PRIORITY,
   type Company,
   type Deal,
   type DealStage,
   type Partner,
   type StageEvent,
+  type Task,
 } from "@/lib/types";
 
 const STAGE_STYLE: Record<string, string> = {
@@ -29,6 +33,12 @@ const STAGE_STYLE: Record<string, string> = {
 const field =
   "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
 const labelCls = "block text-sm font-medium text-slate-700";
+
+const PRIORITY_STYLE: Record<string, string> = {
+  low: "text-slate-400",
+  medium: "text-slate-600",
+  high: "text-red-600",
+};
 
 type DealDetail = Deal & {
   companies: Pick<Company, "name"> | null;
@@ -56,19 +66,28 @@ export default async function DealDetailPage({
 
   const supabase = await createClient();
 
-  const [{ data: dealData, error: dealError }, { data: eventData }] =
-    await Promise.all([
-      supabase
-        .from("deals")
-        .select("*, companies ( name ), partners ( name )")
-        .eq("id", id)
-        .maybeSingle(),
-      supabase
-        .from("stage_events")
-        .select("*")
-        .eq("deal_id", id)
-        .order("changed_at", { ascending: false }),
-    ]);
+  const [
+    { data: dealData, error: dealError },
+    { data: eventData },
+    { data: taskData },
+  ] = await Promise.all([
+    supabase
+      .from("deals")
+      .select("*, companies ( name ), partners ( name )")
+      .eq("id", id)
+      .maybeSingle(),
+    supabase
+      .from("stage_events")
+      .select("*")
+      .eq("deal_id", id)
+      .order("changed_at", { ascending: false }),
+    supabase
+      .from("tasks")
+      .select("*")
+      .eq("deal_id", id)
+      .neq("status", "done")
+      .order("due_date", { ascending: true, nullsFirst: false }),
+  ]);
 
   if (dealError || !dealData) {
     notFound();
@@ -76,6 +95,15 @@ export default async function DealDetailPage({
 
   const deal = dealData as DealDetail;
   const stageEvents = (eventData ?? []) as StageEvent[];
+  const openTasks = (taskData ?? []) as Task[];
+  // 次アクション空白禁止ルールの対象（稼働/ナーチャリング/失注は対象外）
+  const isActiveDeal = !CLOSED_DEAL_STAGES.includes(deal.stage);
+
+  async function markTaskDone(formData: FormData) {
+    "use server";
+    const taskId = String(formData.get("id"));
+    await toggleTaskDone(taskId, true);
+  }
 
   // DEAL_STAGE_ORDER 上の現在位置（nurturing / lost は -1 = 進行バーの外側）
   const stageIndex = DEAL_STAGE_ORDER.indexOf(deal.stage as DealStage);
@@ -104,6 +132,63 @@ export default async function DealDetailPage({
           </span>
         </div>
       </div>
+
+      {/* 次アクション */}
+      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-slate-500">
+            次アクション{openTasks.length > 0 ? `（${openTasks.length} 件）` : ""}
+          </h2>
+          {openTasks.length > 0 && (
+            <Link
+              href={`/tasks/new?deal_id=${deal.id}`}
+              className="text-xs text-slate-500 hover:text-slate-900 hover:underline"
+            >
+              + 追加
+            </Link>
+          )}
+        </div>
+
+        {openTasks.length > 0 ? (
+          <ul className="divide-y divide-slate-100">
+            {openTasks.map((t) => (
+              <li key={t.id} className="flex items-center gap-4 py-3 text-sm">
+                <form action={markTaskDone}>
+                  <input type="hidden" name="id" value={t.id} />
+                  <button
+                    type="submit"
+                    aria-label="完了にする"
+                    className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 text-xs text-transparent hover:border-slate-500"
+                  >
+                    ✓
+                  </button>
+                </form>
+                <p className="min-w-0 flex-1 font-medium text-slate-900">{t.title}</p>
+                <span className={`text-xs font-medium ${PRIORITY_STYLE[t.priority]}`}>
+                  {TASK_PRIORITY[t.priority]}
+                </span>
+                <span className="w-24 text-right text-xs text-slate-400">
+                  {t.due_date ?? "期限なし"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : isActiveDeal ? (
+          <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="font-medium">次のアクションが設定されていません。</p>
+            <Link
+              href={`/tasks/new?deal_id=${deal.id}`}
+              className="mt-3 inline-block rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-red-700"
+            >
+              次のアクションを設定
+            </Link>
+          </div>
+        ) : (
+          <p className="text-sm text-slate-400">
+            {DEAL_STAGE[deal.stage]}のため次アクションの設定は不要です。
+          </p>
+        )}
+      </section>
 
       {/* 取引先・チャネル */}
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">

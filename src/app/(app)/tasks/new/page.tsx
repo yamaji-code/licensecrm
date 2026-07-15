@@ -1,19 +1,36 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createTask } from "../actions";
-import { TASK_PRIORITY, TASK_STATUS, type Company } from "@/lib/types";
+import { TASK_PRIORITY, TASK_STATUS, type Company, type Deal } from "@/lib/types";
 
 const field =
   "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
 const labelCls = "block text-sm font-medium text-slate-700";
 
-export default async function NewTaskPage() {
+type DealOption = Pick<Deal, "id" | "title"> & {
+  companies: Pick<Company, "name"> | null;
+};
+
+export default async function NewTaskPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ deal_id?: string | string[]; next?: string | string[] }>;
+}) {
+  const { deal_id, next } = await searchParams;
+  const presetDealId = typeof deal_id === "string" ? deal_id : "";
+  const nextValue = typeof next === "string" ? next : Array.isArray(next) ? next[0] : "";
+  const showNextBanner = nextValue === "1";
+
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("companies")
-    .select("id, name")
-    .order("name", { ascending: true });
-  const companies = (data ?? []) as Pick<Company, "id" | "name">[];
+  const [{ data: companyData }, { data: dealData }] = await Promise.all([
+    supabase.from("companies").select("id, name").order("name", { ascending: true }),
+    supabase
+      .from("deals")
+      .select("*, companies ( name )")
+      .order("created_at", { ascending: false }),
+  ]);
+  const companies = (companyData ?? []) as Pick<Company, "id" | "name">[];
+  const deals = (dealData ?? []) as DealOption[];
 
   return (
     <div className="mx-auto max-w-2xl px-8 py-10">
@@ -23,6 +40,12 @@ export default async function NewTaskPage() {
         </Link>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">タスクを新規登録</h1>
       </div>
+
+      {showNextBanner && (
+        <p className="mb-4 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-700">
+          前のタスクが完了しました。次のアクションを設定してください。
+        </p>
+      )}
 
       <form
         action={createTask}
@@ -67,10 +90,38 @@ export default async function NewTaskPage() {
           </div>
           <div>
             <label htmlFor="due_date" className={labelCls}>
-              期限
+              期限{presetDealId && <span className="text-red-500"> *</span>}
             </label>
-            <input id="due_date" name="due_date" type="date" className={field} />
+            <input
+              id="due_date"
+              name="due_date"
+              type="date"
+              required={Boolean(presetDealId)}
+              className={field}
+            />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="deal_id" className={labelCls}>
+            関連する案件{" "}
+            <span className="font-normal text-slate-400">
+              選択すると期限の入力が必須になります
+            </span>
+          </label>
+          <select
+            id="deal_id"
+            name="deal_id"
+            defaultValue={presetDealId}
+            className={field}
+          >
+            <option value="">（なし）</option>
+            {deals.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.companies?.name ? `${d.companies.name} / ${d.title}` : d.title}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
