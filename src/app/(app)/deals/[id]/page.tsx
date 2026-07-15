@@ -123,6 +123,15 @@ export default async function DealDetailPage({
             <dd className="mt-0.5 text-slate-900">{deal.partners?.name ?? "—"}</dd>
           </div>
         </dl>
+        <p className="mt-4 border-t border-slate-100 pt-4 text-sm text-slate-500">
+          担当者（人物情報）は取引先ページで管理しています。{" "}
+          <Link
+            href={`/companies/${deal.company_id}`}
+            className="font-medium text-slate-700 hover:underline"
+          >
+            {deal.companies?.name ?? "取引先"}ページを開く →
+          </Link>
+        </p>
       </section>
 
       {/* ステージ進行バー */}

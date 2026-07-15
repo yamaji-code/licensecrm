@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { COMPANY_STATUS, type CompanyStatus } from "@/lib/types";
+import {
+  COMPANY_STATUS,
+  CONTACT_DECISION_ROLE,
+  CONTACT_LEAD_TIME,
+  type CompanyStatus,
+  type ContactDecisionRole,
+  type ContactLeadTime,
+} from "@/lib/types";
 
 function str(value: FormDataEntryValue | null): string | null {
   const s = typeof value === "string" ? value.trim() : "";
@@ -44,4 +51,95 @@ export async function createCompany(formData: FormData) {
 
   revalidatePath("/companies");
   redirect("/companies");
+}
+
+export async function createContact(formData: FormData) {
+  const companyId = str(formData.get("company_id"));
+  if (!companyId) {
+    throw new Error("取引先IDが不正です。");
+  }
+
+  const name = str(formData.get("name"));
+  if (!name) {
+    throw new Error("氏名は必須です。");
+  }
+
+  const decisionRole = str(formData.get("decision_role"));
+  if (decisionRole && !(decisionRole in CONTACT_DECISION_ROLE)) {
+    throw new Error("決裁権区分の値が不正です。");
+  }
+
+  const leadTime = str(formData.get("lead_time"));
+  if (leadTime && !(leadTime in CONTACT_LEAD_TIME)) {
+    throw new Error("想定リードタイムの値が不正です。");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("contacts").insert({
+    company_id: companyId,
+    name,
+    name_kana: str(formData.get("name_kana")),
+    title: str(formData.get("title")),
+    email: str(formData.get("email")),
+    phone: str(formData.get("phone")),
+    decision_role: decisionRole as ContactDecisionRole | null,
+    personality: str(formData.get("personality")),
+    lead_time: leadTime as ContactLeadTime | null,
+    contact_ng_hours: str(formData.get("contact_ng_hours")),
+    note: str(formData.get("note")),
+  });
+
+  if (error) {
+    throw new Error(`登録に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/companies/${companyId}`);
+  redirect(`/companies/${companyId}`);
+}
+
+export async function updateContact(formData: FormData) {
+  const id = str(formData.get("id"));
+  const companyId = str(formData.get("company_id"));
+  if (!id || !companyId) {
+    throw new Error("担当者IDが不正です。");
+  }
+
+  const name = str(formData.get("name"));
+  if (!name) {
+    throw new Error("氏名は必須です。");
+  }
+
+  const decisionRole = str(formData.get("decision_role"));
+  if (decisionRole && !(decisionRole in CONTACT_DECISION_ROLE)) {
+    throw new Error("決裁権区分の値が不正です。");
+  }
+
+  const leadTime = str(formData.get("lead_time"));
+  if (leadTime && !(leadTime in CONTACT_LEAD_TIME)) {
+    throw new Error("想定リードタイムの値が不正です。");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("contacts")
+    .update({
+      name,
+      name_kana: str(formData.get("name_kana")),
+      title: str(formData.get("title")),
+      email: str(formData.get("email")),
+      phone: str(formData.get("phone")),
+      decision_role: decisionRole as ContactDecisionRole | null,
+      personality: str(formData.get("personality")),
+      lead_time: leadTime as ContactLeadTime | null,
+      contact_ng_hours: str(formData.get("contact_ng_hours")),
+      note: str(formData.get("note")),
+    })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/companies/${companyId}`);
+  redirect(`/companies/${companyId}`);
 }
