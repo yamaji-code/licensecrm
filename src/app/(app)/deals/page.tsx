@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
+  CLOSED_DEAL_STAGES,
   DEAL_CHANNEL,
   DEAL_STAGE,
   type Deal,
@@ -45,6 +46,17 @@ export default async function DealsPage({
   const { data, error } = await query;
 
   const deals = (data ?? []) as DealWithCompany[];
+
+  // 次アクション未設定のアクティブ案件を検出する軽量クエリ（1クエリで済む範囲）:
+  // deal_id を持つ未完了タスクの deal_id 一覧だけを取得し、Set 突合で判定する
+  const { data: openDealTaskData } = await supabase
+    .from("tasks")
+    .select("deal_id")
+    .not("deal_id", "is", null)
+    .neq("status", "done");
+  const dealsWithOpenTask = new Set(
+    (openDealTaskData ?? []).map((t) => t.deal_id as string),
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-8 py-10">
@@ -119,13 +131,21 @@ export default async function DealsPage({
                     {d.companies?.name ?? "—"}
                   </td>
                   <td className="px-5 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        STAGE_STYLE[d.stage]
-                      }`}
-                    >
-                      {DEAL_STAGE[d.stage]}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                          STAGE_STYLE[d.stage]
+                        }`}
+                      >
+                        {DEAL_STAGE[d.stage]}
+                      </span>
+                      {!CLOSED_DEAL_STAGES.includes(d.stage) &&
+                        !dealsWithOpenTask.has(d.id) && (
+                          <span className="whitespace-nowrap rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                            次アクション未設定
+                          </span>
+                        )}
+                    </div>
                   </td>
                   <td className="px-5 py-3 text-slate-600">
                     {DEAL_CHANNEL[d.channel]}
