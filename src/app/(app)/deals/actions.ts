@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   DEAL_CHANNEL,
+  DEAL_STAGE,
   REFERRAL_CHANNELS,
   type DealChannel,
+  type DealStage,
 } from "@/lib/types";
 
 function str(value: FormDataEntryValue | null): string | null {
@@ -71,4 +73,52 @@ export async function createDeal(formData: FormData) {
 
   revalidatePath("/deals");
   redirect("/deals");
+}
+
+export async function updateDeal(formData: FormData) {
+  const id = str(formData.get("id"));
+  if (!id) {
+    throw new Error("案件IDが不正です。");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("deals")
+    .update({ note: str(formData.get("note")) })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/deals/${id}`);
+  redirect(`/deals/${id}`);
+}
+
+export async function changeDealStage(formData: FormData) {
+  const id = str(formData.get("id"));
+  if (!id) {
+    throw new Error("案件IDが不正です。");
+  }
+
+  const stage = String(formData.get("stage") ?? "");
+  if (!(stage in DEAL_STAGE)) {
+    throw new Error("ステージの値が不正です。");
+  }
+
+  const supabase = await createClient();
+  // stage_events への記録は DB トリガー（log_stage_event）が自動で行う。
+  // stage_events は RLS で直接 insert が禁止されているため、ここでは deals.stage の update のみ行う。
+  const { error } = await supabase
+    .from("deals")
+    .update({ stage: stage as DealStage })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`ステージ変更に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/deals/${id}`);
+  revalidatePath("/deals");
+  redirect(`/deals/${id}`);
 }
