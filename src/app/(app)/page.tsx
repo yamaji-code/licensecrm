@@ -43,8 +43,8 @@ export default async function Dashboard() {
     { count: companyCount },
     { count: taskOpenCount },
     { data: recentTasks },
-    { data: kpiFactsData },
-    { data: dealStageData },
+    { data: kpiFactsData, error: kpiFactsError },
+    { data: dealStageData, error: dealStageError },
     { data: openDealTaskData },
   ] = await Promise.all([
     supabase.from("companies").select("*", { count: "exact", head: true }),
@@ -68,6 +68,11 @@ export default async function Dashboard() {
       .not("deal_id", "is", null)
       .neq("status", "done"),
   ]);
+
+  // KPI 集計クエリが失敗した場合（0002 未適用・RLS 失敗など）は、
+  // 「商談 0/20・契約 0/2」を実データと誤認させないためエラーを検知する。
+  // deals/page.tsx・tasks/page.tsx と同じ「読み込みエラー」バナー方針に合わせる。
+  const kpiError = kpiFactsError ?? dealStageError;
 
   // --- KPI: 当四半期の商談実施・契約集計 ---
   const kpiFacts = (kpiFactsData ?? []) as DealKpiFact[];
@@ -125,6 +130,13 @@ export default async function Dashboard() {
           {quarterLabel} の営業 KPI と社内業務の概況
         </p>
       </header>
+
+      {kpiError && (
+        <p className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+          KPI データの読み込みに失敗しました（マイグレーション 0002 未適用の可能性があります）。
+          下記の商談・契約・成約率は正しい値ではありません: {kpiError.message}
+        </p>
+      )}
 
       {noNextActionCount > 0 && (
         <Link
