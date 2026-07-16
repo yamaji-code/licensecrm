@@ -6,6 +6,7 @@ const NAV = [
   { href: "/", label: "ダッシュボード" },
   { href: "/deals", label: "案件" },
   { href: "/companies", label: "取引先・顧客" },
+  { href: "/partners", label: "パートナー" },
   { href: "/tasks", label: "タスク" },
 ] as const;
 
