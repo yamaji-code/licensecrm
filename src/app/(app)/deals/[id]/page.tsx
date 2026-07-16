@@ -80,10 +80,10 @@ export default async function DealDetailPage({
 
   const [
     { data: dealData, error: dealError },
-    { data: eventData },
-    { data: taskData },
-    { data: meetingData },
-    { data: knowledgeData },
+    { data: eventData, error: eventError },
+    { data: taskData, error: taskError },
+    { data: meetingData, error: meetingError },
+    { data: knowledgeData, error: knowledgeError },
   ] = await Promise.all([
     supabase
       .from("deals")
@@ -120,6 +120,11 @@ export default async function DealDetailPage({
   if (dealError || !dealData) {
     notFound();
   }
+
+  // 副次クエリの読み取り失敗は、履歴やMTGが「無い」ように見せず障害として明示する
+  // （空表示との誤認を防ぐ。RLS拒否は空配列を返すためここには乗らない）
+  const secondaryError =
+    eventError ?? taskError ?? meetingError ?? knowledgeError;
 
   const deal = dealData as DealDetail;
   const stageEvents = (eventData ?? []) as StageEvent[];
@@ -162,6 +167,13 @@ export default async function DealDetailPage({
           </span>
         </div>
       </div>
+
+      {secondaryError && (
+        <p className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+          一部の情報の読み込みに失敗しました（履歴・タスク・MTG・ナレッジのいずれか）。
+          表示されていない項目があっても、データが消えたわけではありません: {secondaryError.message}
+        </p>
+      )}
 
       {/* 次アクション */}
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">

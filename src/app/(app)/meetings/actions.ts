@@ -42,11 +42,12 @@ export async function createMeeting(formData: FormData) {
   for (let i = 1; i <= PROBLEM_ROW_COUNT; i++) {
     const problem = str(formData.get(`problem_${i}`));
     if (!problem) continue;
-    const sceneTag = String(formData.get(`scene_tag_${i}`) ?? "");
-    if (!(sceneTag in SCENE_TAG)) {
-      throw new Error(`困りごと${i}件目の場面タグを選択してください。`);
-    }
-    problemRows.push({ sceneTag: sceneTag as SceneTag, problem });
+    // 場面タグ未選択でも困りごと自体は失わない（その他 として保存し後で分類し直せる）。
+    // ここで throw すると入力済みのMTG要旨ごと画面が飛ぶため、救済側に倒す。
+    const sceneTagRaw = String(formData.get(`scene_tag_${i}`) ?? "");
+    const sceneTag: SceneTag =
+      sceneTagRaw in SCENE_TAG ? (sceneTagRaw as SceneTag) : "other";
+    problemRows.push({ sceneTag, problem });
   }
 
   const supabase = await createClient();
