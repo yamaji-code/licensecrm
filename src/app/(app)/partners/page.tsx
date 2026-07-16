@@ -60,7 +60,9 @@ export default async function PartnersPage() {
     if (!s) continue;
     if (r.direction === "received") s.received += 1;
     if (r.direction === "given") s.given += 1;
-    if (r.deal_id) s.dealIds.add(r.deal_id);
+    // 「紹介経由の案件・成約率」は received（このパートナーから紹介された）案件のみを母数にする。
+    // given（こちらが紹介した先）に deal_id が付いても成約率に混ぜない。
+    if (r.direction === "received" && r.deal_id) s.dealIds.add(r.deal_id);
   }
 
   return (

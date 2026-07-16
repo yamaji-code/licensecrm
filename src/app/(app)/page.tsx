@@ -45,7 +45,7 @@ export default async function Dashboard() {
     { data: recentTasks },
     { data: kpiFactsData, error: kpiFactsError },
     { data: dealStageData, error: dealStageError },
-    { data: openDealTaskData },
+    { data: openDealTaskData, error: openDealTaskError },
   ] = await Promise.all([
     supabase.from("companies").select("*", { count: "exact", head: true }),
     supabase
@@ -71,8 +71,14 @@ export default async function Dashboard() {
 
   // KPI 集計クエリが失敗した場合（0002 未適用・RLS 失敗など）は、
   // 「商談 0/20・契約 0/2」を実データと誤認させないためエラーを検知する。
+  // openDealTaskData の失敗は「次アクション未設定」の誤カウントにつながるため併せて検知する。
   // deals/page.tsx・tasks/page.tsx と同じ「読み込みエラー」バナー方針に合わせる。
-  const kpiError = kpiFactsError ?? dealStageError;
+  const kpiError = kpiFactsError ?? dealStageError ?? openDealTaskError;
+
+  // 注意（山路さん確認事項 #9・未確定）: 設計§5 は「商談を経ず契約直行した案件」を
+  // coalesce(first_meeting_at, first_contract_at) で救済する案があるが、ビュー・集計とも未実装。
+  // 現状はチャネル別の母数を「商談到達ベース」に統一しており、飛び越え契約はチャネル別内訳に出ない。
+  // #9 の確定後、必要なら deal_kpi_facts ビューに coalesce を入れる（または救済しない旨をUIに注記）。
 
   // --- KPI: 当四半期の商談実施・契約集計 ---
   const kpiFacts = (kpiFactsData ?? []) as DealKpiFact[];
