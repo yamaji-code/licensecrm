@@ -1,39 +1,29 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getQuarterRange, KPI_TARGET } from "@/lib/kpi";
+import { formatRate, inRange, summarizeQuarterKpi } from "@/lib/kpi";
+import { ProgressBar } from "@/components/progress-bar";
 import {
   CLOSED_DEAL_STAGES,
+  COMPANY_SIZE,
   DEAL_CHANNEL,
+  DEAL_STAGE,
+  DEAL_STAGE_ORDER,
   TASK_STATUS,
   type Deal,
   type DealChannel,
   type DealKpiFact,
+  type GenreStat,
+  type StageDuration,
 } from "@/lib/types";
 
-// 指定した ISO 日時が四半期レンジ [start, end) に入っているか判定する
-function inRange(iso: string | null, start: Date, end: Date): boolean {
-  if (!iso) return false;
-  const t = new Date(iso).getTime();
-  return t >= start.getTime() && t < end.getTime();
-}
-
-// 分母が 0 のときは "—" にしてゼロ除算エラー・NaN 表示を避ける
-function formatRate(numerator: number, denominator: number): string {
-  if (denominator === 0) return "—";
-  return `${Math.round((numerator / denominator) * 100)}%`;
-}
-
-function ProgressBar({ value, target }: { value: number; target: number }) {
-  const pct =
-    target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
-  return (
-    <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-      <div
-        className="h-full rounded-full bg-slate-900 transition-all"
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
+// 中央値（データなしは null）
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 export default async function Dashboard() {
@@ -46,6 +36,8 @@ export default async function Dashboard() {
     { data: kpiFactsData, error: kpiFactsError },
     { data: dealStageData, error: dealStageError },
     { data: openDealTaskData, error: openDealTaskError },
+    { data: durationData },
+    { data: genreStatData },
   ] = await Promise.all([
     supabase.from("companies").select("*", { count: "exact", head: true }),
     supabase
@@ -67,6 +59,13 @@ export default async function Dashboard() {
       .select("deal_id")
       .not("deal_id", "is", null)
       .neq("status", "done"),
+    // 規模別リードタイム（stage_durations ビュー）。滞在確定分だけを集計に使う
+    supabase.from("stage_durations").select("*"),
+    // ジャンル獲得マップ（genre_stats ビュー）
+    supabase
+      .from("genre_stats")
+      .select("*")
+      .order("sort_order", { ascending: true }),
   ]);
 
   // KPI 集計クエリが失敗した場合（0002 未適用・RLS 失敗など）は、
@@ -80,18 +79,20 @@ export default async function Dashboard() {
   // 現状はチャネル別の母数を「商談到達ベース」に統一しており、飛び越え契約はチャネル別内訳に出ない。
   // #9 の確定後、必要なら deal_kpi_facts ビューに coalesce を入れる（または救済しない旨をUIに注記）。
 
-  // --- KPI: 当四半期の商談実施・契約集計 ---
+  // --- KPI: 当四半期の商談実施・契約集計（ボードのKPIバーと同一の共通関数） ---
   const kpiFacts = (kpiFactsData ?? []) as DealKpiFact[];
-  const { start, end, label: quarterLabel } = getQuarterRange();
+  const {
+    quarterLabel,
+    start,
+    end,
+    meetingsCount,
+    contractsCount,
+    targets,
+  } = summarizeQuarterKpi(kpiFacts);
 
   const meetingsThisQ = kpiFacts.filter((f) =>
     inRange(f.first_meeting_at, start, end),
   );
-  const contractsThisQ = kpiFacts.filter((f) =>
-    inRange(f.first_contract_at, start, end),
-  );
-  const meetingsCount = meetingsThisQ.length;
-  const contractsCount = contractsThisQ.length;
 
   // 速報成約率 = 当Q契約 ÷ 当Q商談（暫定値。契約は前Q以前に商談実施した案件を含みうる）
   const flashRateLabel = formatRate(contractsCount, meetingsCount);
@@ -127,6 +128,45 @@ export default async function Dashboard() {
   const noNextActionCount = dealStages.filter(
     (d) => !CLOSED_DEAL_STAGES.includes(d.stage) && !dealsWithOpenTask.has(d.id),
   ).length;
+
+  // --- 規模別リードタイム（ステージ滞在日数の中央値） ---
+  // 滞在が確定した区間のみ集計（進行中は含めない）。
+  // 旧CRM移行案件は遷移日時に近似を含むため計測対象外（migrated_from_legacy で除外）。
+  const durations = (durationData ?? []) as StageDuration[];
+  const completedStays = durations.filter(
+    (d) => !d.is_current && !d.migrated_from_legacy,
+  );
+  const SIZE_COLUMNS = [
+    { key: "large", label: COMPANY_SIZE.large },
+    { key: "sme", label: COMPANY_SIZE.sme },
+    { key: "unset", label: "未設定" },
+  ] as const;
+  const leadTimeRows = DEAL_STAGE_ORDER.filter((s) => s !== "sv_ready").map(
+    (stage) => ({
+      stage,
+      cells: SIZE_COLUMNS.map((col) => {
+        const values = completedStays
+          .filter(
+            (d) =>
+              d.stage === stage &&
+              (col.key === "unset"
+                ? d.company_size === null
+                : d.company_size === col.key),
+          )
+          .map((d) => d.days_in_stage);
+        const m = median(values);
+        return {
+          key: col.key,
+          label: m === null ? "—" : `${m.toFixed(1)}日 (${values.length})`,
+          low: values.length > 0 && values.length < 3,
+        };
+      }),
+    }),
+  );
+  const hasLeadTimeData = completedStays.length > 0;
+
+  // --- ジャンル獲得マップ ---
+  const genreStats = (genreStatData ?? []) as GenreStat[];
 
   return (
     <div className="mx-auto max-w-4xl px-8 py-10">
@@ -165,20 +205,28 @@ export default async function Dashboard() {
           <p className="mt-2 text-3xl font-semibold text-slate-900">
             {meetingsCount}
             <span className="ml-1 text-base font-normal text-slate-400">
-              / {KPI_TARGET.meetings} 件
+              / {targets.meetings} 件
             </span>
           </p>
-          <ProgressBar value={meetingsCount} target={KPI_TARGET.meetings} />
+          <ProgressBar
+            value={meetingsCount}
+            target={targets.meetings}
+            className="mt-3 h-2 w-full"
+          />
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-500">{quarterLabel} 契約</p>
           <p className="mt-2 text-3xl font-semibold text-slate-900">
             {contractsCount}
             <span className="ml-1 text-base font-normal text-slate-400">
-              / {KPI_TARGET.contracts} 件
+              / {targets.contracts} 件
             </span>
           </p>
-          <ProgressBar value={contractsCount} target={KPI_TARGET.contracts} />
+          <ProgressBar
+            value={contractsCount}
+            target={targets.contracts}
+            className="mt-3 h-2 w-full"
+          />
         </div>
       </section>
 
@@ -232,6 +280,110 @@ export default async function Dashboard() {
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      {/* 規模別リードタイム */}
+      <section className="mt-8">
+        <h2 className="mb-3 text-sm font-medium text-slate-700">
+          ステージ別リードタイム（滞在日数の中央値・( )内は件数）
+        </h2>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          {hasLeadTimeData ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
+                  <th className="px-5 py-3 font-medium">ステージ</th>
+                  {SIZE_COLUMNS.map((c) => (
+                    <th key={c.key} className="px-5 py-3 font-medium">
+                      {c.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {leadTimeRows.map((row) => (
+                  <tr key={row.stage}>
+                    <td className="px-5 py-3 text-slate-800">
+                      {DEAL_STAGE[row.stage]}
+                    </td>
+                    {row.cells.map((cell) => (
+                      <td key={cell.key} className="px-5 py-3 text-slate-600">
+                        {cell.label}
+                        {cell.low && (
+                          <span className="ml-1 text-xs text-slate-400">
+                            ※少数
+                          </span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="px-5 py-6 text-center text-sm text-slate-400">
+              まだ計測データがありません（旧CRM移行分は遷移日時が近似のため計測対象外。
+              新しい案件がステージを進むと自動で貯まります）
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* ジャンル獲得マップ */}
+      <section className="mt-8">
+        <h2 className="mb-3 text-sm font-medium text-slate-700">
+          ジャンル獲得マップ（1ジャンル1契約・空白ジャンルが次の狙い目）
+        </h2>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          {genreStats.length > 0 ? (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
+                  <th className="px-5 py-3 font-medium">ジャンル</th>
+                  <th className="px-5 py-3 font-medium">契約済</th>
+                  <th className="px-5 py-3 font-medium">進行中案件</th>
+                  <th className="px-5 py-3 font-medium">優先度</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {genreStats
+                  .filter((g) => g.is_active)
+                  .map((g) => {
+                    const suppressed =
+                      g.priority_override === "suppress" ||
+                      (g.priority_override !== "boost" && g.contracted_count > 0);
+                    return (
+                      <tr key={g.genre_id}>
+                        <td className="px-5 py-3 text-slate-800">{g.name}</td>
+                        <td className="px-5 py-3 text-slate-600">
+                          {g.contracted_count > 0 ? `${g.contracted_count} 件` : "—"}
+                        </td>
+                        <td className="px-5 py-3 text-slate-600">
+                          {g.open_count} 件
+                        </td>
+                        <td className="px-5 py-3">
+                          {suppressed ? (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                              低（獲得済）
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">
+                              狙い目
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          ) : (
+            <p className="px-5 py-6 text-center text-sm text-slate-400">
+              ジャンルが未登録です。ジャンルマスタ（業態13種など）を登録すると、
+              獲得状況と狙い目がここに表示されます
+            </p>
+          )}
         </div>
       </section>
 

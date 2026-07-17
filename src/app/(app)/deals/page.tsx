@@ -15,6 +15,8 @@ import {
 } from "@/lib/types";
 import { advanceDealStage, setBoardDensity } from "./actions";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
+import { KpiBar } from "@/components/kpi-bar";
+import { summarizeQuarterKpi } from "@/lib/kpi";
 
 // カンバンの列順は STAGE_GROUPS（types.ts）を単一ソースにする。
 const BOARD_COLUMNS: DealStage[] = STAGE_GROUPS.flatMap((g) => [...g.stages]);
@@ -101,6 +103,7 @@ export default async function DealsPage({
     { data: taskData },
     { data: genreData },
     { data: genreStatData },
+    { data: kpiFactsData, error: kpiFactsError },
   ] = await Promise.all([
     query,
     supabase
@@ -113,7 +116,12 @@ export default async function DealsPage({
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
     supabase.from("genre_stats").select("genre_id, contracted_count"),
+    // ボード上部のKPIバー用（集計はダッシュボードと同一関数 summarizeQuarterKpi）
+    supabase
+      .from("deal_kpi_facts")
+      .select("first_meeting_at, first_contract_at"),
   ]);
+  const kpiSummary = summarizeQuarterKpi(kpiFactsData ?? []);
 
   const deals = (data ?? []) as DealWithRelations[];
   const genres = (genreData ?? []) as { id: string; name: string }[];
@@ -246,6 +254,16 @@ export default async function DealsPage({
             閉じる
           </Link>
         </div>
+      )}
+
+      {!isTable && (
+        <KpiBar
+          quarterLabel={kpiSummary.quarterLabel}
+          meetingsCount={kpiSummary.meetingsCount}
+          contractsCount={kpiSummary.contractsCount}
+          targets={kpiSummary.targets}
+          hasError={Boolean(kpiFactsError)}
+        />
       )}
 
       {isTable ? (
