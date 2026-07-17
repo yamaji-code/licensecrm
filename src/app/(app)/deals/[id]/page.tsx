@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { changeDealStage, updateDeal } from "../actions";
@@ -20,19 +21,6 @@ import {
   type StageEvent,
   type Task,
 } from "@/lib/types";
-
-const STAGE_STYLE: Record<string, string> = {
-  list: "bg-slate-100 text-slate-600",
-  selected: "bg-slate-200 text-slate-700",
-  contacting: "bg-blue-100 text-blue-700",
-  meeting_set: "bg-indigo-100 text-indigo-700",
-  meeting_done: "bg-violet-100 text-violet-700",
-  considering: "bg-amber-100 text-amber-700",
-  contract: "bg-green-100 text-green-700",
-  live: "bg-emerald-100 text-emerald-700",
-  nurturing: "bg-teal-100 text-teal-700",
-  lost: "bg-red-100 text-red-600",
-};
 
 const field =
   "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
@@ -131,7 +119,7 @@ export default async function DealDetailPage({
   const openTasks = (taskData ?? []) as Task[];
   const meetings = (meetingData ?? []) as Meeting[];
   const relatedKnowledge = (knowledgeData ?? []) as KnowledgeCard[];
-  // 次アクション空白禁止ルールの対象（稼働/ナーチャリング/失注は対象外）
+  // 次アクション空白禁止ルールの対象（SV案内可能/時期見送り/失注は対象外）
   const isActiveDeal = !CLOSED_DEAL_STAGES.includes(deal.stage);
 
   async function markTaskDone(formData: FormData) {
@@ -161,7 +149,7 @@ export default async function DealDetailPage({
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold text-slate-900">{deal.title}</h1>
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_STYLE[deal.stage]}`}
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_BADGE_STYLE[deal.stage]}`}
           >
             {DEAL_STAGE[deal.stage]}
           </span>

@@ -9,21 +9,9 @@ import {
   type DealStage,
 } from "@/lib/types";
 import { advanceDealStage } from "./actions";
+import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 
-const STAGE_STYLE: Record<string, string> = {
-  list: "bg-slate-100 text-slate-600",
-  selected: "bg-slate-200 text-slate-700",
-  contacting: "bg-blue-100 text-blue-700",
-  meeting_set: "bg-indigo-100 text-indigo-700",
-  meeting_done: "bg-violet-100 text-violet-700",
-  considering: "bg-amber-100 text-amber-700",
-  contract: "bg-green-100 text-green-700",
-  live: "bg-emerald-100 text-emerald-700",
-  nurturing: "bg-teal-100 text-teal-700",
-  lost: "bg-red-100 text-red-600",
-};
-
-// カンバンの列: パイプライン順（list→…→live）の後に、進行外の nurturing / lost を置く。
+// カンバンの列: パイプライン順（sourced→…→sv_ready）の後に、進行外の nurturing / lost を置く。
 const BOARD_COLUMNS: DealStage[] = [
   ...DEAL_STAGE_ORDER,
   "nurturing",
@@ -168,7 +156,7 @@ function BoardView({
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
               <span
-                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STAGE_STYLE[col]}`}
+                className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STAGE_BADGE_STYLE[col]}`}
               >
                 {DEAL_STAGE[col]}
               </span>
@@ -333,7 +321,7 @@ function TableView({
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          STAGE_STYLE[d.stage]
+                          STAGE_BADGE_STYLE[d.stage]
                         }`}
                       >
                         {DEAL_STAGE[d.stage]}

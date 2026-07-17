@@ -40,7 +40,7 @@ export async function createDeal(formData: FormData) {
 
   const partnerId = str(formData.get("partner_id"));
 
-  // stage は DB デフォルトの 'list' で作成する。
+  // stage は DB デフォルトの 'sourced' で作成する。
   // stage_events への初回記録は deals の DB トリガーが行うため、ここでは書かない。
   const { data: deal, error } = await supabase
     .from("deals")
@@ -116,7 +116,7 @@ export async function advanceDealStage(formData: FormData) {
     throw new Error("案件が見つかりませんでした。");
   }
 
-  // パイプライン順で次ステージを求める。進行外（nurturing/lost）や末尾（live）は進めない。
+  // パイプライン順で次ステージを求める。進行外（nurturing/lost）や末尾（sv_ready）は進めない。
   const currentIndex = DEAL_STAGE_ORDER.indexOf(deal.stage as DealStage);
   if (currentIndex < 0 || currentIndex >= DEAL_STAGE_ORDER.length - 1) {
     throw new Error("この案件は次のステージへ進められません。");
