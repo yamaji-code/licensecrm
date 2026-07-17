@@ -56,6 +56,14 @@ export const REFERRAL_CHANNELS: readonly DealChannel[] = [
   "referral_alliance",
 ];
 
+// 見送り・失注のフェーズ（旧CRM実データで「提案前NG」「提案後NG」の2種を確認済み）
+export const LOST_REASON_PHASE = {
+  before_proposal: "提案前",
+  after_proposal: "提案後",
+  other: "その他",
+} as const;
+export type LostReasonPhase = keyof typeof LOST_REASON_PHASE;
+
 export const PARTNER_TYPE = {
   maker: "メーカー",
   wholesaler: "卸",
@@ -198,6 +206,8 @@ export type Deal = {
   channel: DealChannel;
   partner_id: string | null;
   note: string | null;
+  lost_reason_phase: LostReasonPhase | null;
+  lost_reason_note: string | null;
   owner_id: string | null;
   created_at: string;
   updated_at: string;
