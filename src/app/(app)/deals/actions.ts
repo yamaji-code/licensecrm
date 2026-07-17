@@ -1,16 +1,35 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   DEAL_CHANNEL,
   DEAL_STAGE,
   DEAL_STAGE_ORDER,
+  PB_STATUS,
   REFERRAL_CHANNELS,
   type DealChannel,
   type DealStage,
+  type PbStatus,
 } from "@/lib/types";
+
+// ボードの表示密度（標準/コンパクト）を cookie に保存する。
+// URLパラメータでなく cookie にする理由: サイドバーから /deals に戻っても選択が残るように。
+export async function setBoardDensity(formData: FormData) {
+  const density = String(formData.get("density") ?? "");
+  const value = density === "compact" ? "compact" : "comfortable";
+  const cookieStore = await cookies();
+  cookieStore.set("board_density", value, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+  revalidatePath("/deals");
+}
+
+// フォーム値から pb_status を検証して返す（不正値・未指定は null）
+function parsePbStatus(value: FormDataEntryValue | null): PbStatus | null {
+  const s = typeof value === "string" ? value : "";
+  return s in PB_STATUS ? (s as PbStatus) : null;
+}
 
 function str(value: FormDataEntryValue | null): string | null {
   const s = typeof value === "string" ? value.trim() : "";
@@ -49,6 +68,8 @@ export async function createDeal(formData: FormData) {
       title,
       channel: channel as DealChannel,
       partner_id: partnerId,
+      genre_id: str(formData.get("genre_id")),
+      pb_status: parsePbStatus(formData.get("pb_status")),
       note: str(formData.get("note")),
       owner_id: user?.id ?? null,
     })
@@ -85,7 +106,11 @@ export async function updateDeal(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase
     .from("deals")
-    .update({ note: str(formData.get("note")) })
+    .update({
+      note: str(formData.get("note")),
+      genre_id: str(formData.get("genre_id")),
+      pb_status: parsePbStatus(formData.get("pb_status")),
+    })
     .eq("id", id);
 
   if (error) {

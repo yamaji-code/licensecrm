@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createCompany } from "../actions";
-import { COMPANY_STATUS } from "@/lib/types";
+import { COMPANY_SIZE, COMPANY_STATUS } from "@/lib/types";
 
 const field =
   "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
@@ -49,6 +49,27 @@ export default function NewCompanyPage() {
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
+          <div>
+            <label htmlFor="company_size" className={labelCls}>
+              企業規模{" "}
+              <span className="font-normal text-slate-400">
+                目安: 10店舗以上・従業員100名以上・上場系は大手
+              </span>
+            </label>
+            <select
+              id="company_size"
+              name="company_size"
+              defaultValue=""
+              className={field}
+            >
+              <option value="">（未設定）</option>
+              {Object.entries(COMPANY_SIZE).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
           <div>
             <label htmlFor="industry" className={labelCls}>
               業種

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { COMPANY_STATUS, type Company } from "@/lib/types";
+import { COMPANY_SIZE, COMPANY_STATUS, type Company } from "@/lib/types";
 
 const STATUS_STYLE: Record<string, string> = {
   prospect: "bg-slate-100 text-slate-600",
@@ -46,6 +46,7 @@ export default async function CompaniesPage() {
               <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
                 <th className="px-5 py-3 font-medium">会社名</th>
                 <th className="px-5 py-3 font-medium">ステータス</th>
+                <th className="px-5 py-3 font-medium">規模</th>
                 <th className="px-5 py-3 font-medium">業種</th>
                 <th className="px-5 py-3 font-medium">電話</th>
               </tr>
@@ -72,6 +73,9 @@ export default async function CompaniesPage() {
                     >
                       {COMPANY_STATUS[c.status]}
                     </span>
+                  </td>
+                  <td className="px-5 py-3 text-slate-600">
+                    {c.company_size ? COMPANY_SIZE[c.company_size] : "未設定"}
                   </td>
                   <td className="px-5 py-3 text-slate-600">{c.industry ?? "—"}</td>
                   <td className="px-5 py-3 text-slate-600">{c.phone ?? "—"}</td>

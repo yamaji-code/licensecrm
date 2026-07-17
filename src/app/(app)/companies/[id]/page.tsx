@@ -2,7 +2,9 @@ import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { updateCompanySize } from "../actions";
 import {
+  COMPANY_SIZE,
   COMPANY_STATUS,
   CONTACT_DECISION_ROLE,
   CONTACT_DECISION_ROLE_MARK,
@@ -86,6 +88,40 @@ export default async function CompanyDetailPage({
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
         <h2 className="mb-4 text-sm font-medium text-slate-500">基本情報</h2>
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-slate-400">
+              企業規模{" "}
+              <span className="text-slate-300">
+                （目安: 10店舗以上・従業員100名以上・上場系は大手）
+              </span>
+            </dt>
+            <dd className="mt-0.5">
+              <form
+                action={updateCompanySize}
+                className="flex items-center gap-2"
+              >
+                <input type="hidden" name="id" value={company.id} />
+                <select
+                  name="company_size"
+                  defaultValue={company.company_size ?? ""}
+                  className="rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-900 outline-none focus:border-slate-500"
+                >
+                  <option value="">未設定</option>
+                  {Object.entries(COMPANY_SIZE).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+                >
+                  保存
+                </button>
+              </form>
+            </dd>
+          </div>
           <div>
             <dt className="text-slate-400">業種</dt>
             <dd className="mt-0.5 text-slate-900">{company.industry ?? "—"}</dd>

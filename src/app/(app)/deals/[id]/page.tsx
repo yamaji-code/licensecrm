@@ -10,6 +10,7 @@ import {
   DEAL_STAGE,
   DEAL_STAGE_ORDER,
   MEETING_FORMAT,
+  PB_STATUS,
   SCENE_TAG,
   TASK_PRIORITY,
   type Company,
@@ -43,6 +44,7 @@ const SCENE_TAG_STYLE: Record<string, string> = {
 type DealDetail = Deal & {
   companies: Pick<Company, "name"> | null;
   partners: Pick<Partner, "name"> | null;
+  genres: { name: string } | null;
 };
 
 // stage_events の changed_at（UTC ISO文字列）を JST 表示用に整形する
@@ -72,10 +74,11 @@ export default async function DealDetailPage({
     { data: taskData, error: taskError },
     { data: meetingData, error: meetingError },
     { data: knowledgeData, error: knowledgeError },
+    { data: genreStatData },
   ] = await Promise.all([
     supabase
       .from("deals")
-      .select("*, companies ( name ), partners ( name )")
+      .select("*, companies ( name ), partners ( name ), genres ( name )")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -103,6 +106,11 @@ export default async function DealDetailPage({
       .eq("status", "published")
       .order("published_at", { ascending: false })
       .limit(3),
+    // ジャンル選択肢（契約済みジャンルの注記付き）
+    supabase
+      .from("genre_stats")
+      .select("genre_id, name, is_active, sort_order, contracted_count")
+      .order("sort_order", { ascending: true }),
   ]);
 
   if (dealError || !dealData) {
@@ -119,6 +127,12 @@ export default async function DealDetailPage({
   const openTasks = (taskData ?? []) as Task[];
   const meetings = (meetingData ?? []) as Meeting[];
   const relatedKnowledge = (knowledgeData ?? []) as KnowledgeCard[];
+  const genreOptions = ((genreStatData ?? []) as {
+    genre_id: string;
+    name: string;
+    is_active: boolean;
+    contracted_count: number;
+  }[]).filter((g) => g.is_active);
   // 次アクション空白禁止ルールの対象（SV案内可能/時期見送り/失注は対象外）
   const isActiveDeal = !CLOSED_DEAL_STAGES.includes(deal.stage);
 
@@ -237,6 +251,16 @@ export default async function DealDetailPage({
             <dt className="text-slate-400">紹介元パートナー</dt>
             <dd className="mt-0.5 text-slate-900">{deal.partners?.name ?? "—"}</dd>
           </div>
+          <div>
+            <dt className="text-slate-400">ジャンル</dt>
+            <dd className="mt-0.5 text-slate-900">{deal.genres?.name ?? "未設定"}</dd>
+          </div>
+          <div>
+            <dt className="text-slate-400">PB品の状態</dt>
+            <dd className="mt-0.5 text-slate-900">
+              {deal.pb_status ? PB_STATUS[deal.pb_status] : "未確認"}
+            </dd>
+          </div>
         </dl>
         <p className="mt-4 border-t border-slate-100 pt-4 text-sm text-slate-500">
           担当者（人物情報）は取引先ページで管理しています。{" "}
@@ -320,24 +344,68 @@ export default async function DealDetailPage({
         </form>
       </section>
 
-      {/* メモ */}
+      {/* 案件情報の編集（ジャンル / PB品 / メモ） */}
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-3 text-sm font-medium text-slate-500">メモ</h2>
-        <form action={updateDeal}>
+        <h2 className="mb-3 text-sm font-medium text-slate-500">案件情報の編集</h2>
+        <form action={updateDeal} className="space-y-4">
           <input type="hidden" name="id" value={deal.id} />
-          <textarea
-            id="note"
-            name="note"
-            rows={5}
-            defaultValue={deal.note ?? ""}
-            className={field}
-          />
-          <div className="mt-3">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="genre_id" className={labelCls}>
+                ジャンル
+              </label>
+              <select
+                id="genre_id"
+                name="genre_id"
+                defaultValue={deal.genre_id ?? ""}
+                className={field}
+              >
+                <option value="">（未設定）</option>
+                {genreOptions.map((g) => (
+                  <option key={g.genre_id} value={g.genre_id}>
+                    {g.name}
+                    {g.contracted_count > 0 ? "（契約済・優先度低）" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="pb_status" className={labelCls}>
+                PB品の状態
+              </label>
+              <select
+                id="pb_status"
+                name="pb_status"
+                defaultValue={deal.pb_status ?? ""}
+                className={field}
+              >
+                <option value="">（未確認）</option>
+                {Object.entries(PB_STATUS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="note" className={labelCls}>
+              メモ
+            </label>
+            <textarea
+              id="note"
+              name="note"
+              rows={5}
+              defaultValue={deal.note ?? ""}
+              className={field}
+            />
+          </div>
+          <div>
             <button
               type="submit"
               className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
             >
-              メモを保存
+              保存する
             </button>
           </div>
         </form>

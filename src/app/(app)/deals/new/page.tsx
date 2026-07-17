@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createDeal } from "../actions";
-import { DEAL_CHANNEL, type Company, type Partner } from "@/lib/types";
+import { DEAL_CHANNEL, PB_STATUS, type Company, type Partner } from "@/lib/types";
 
 const field =
   "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
@@ -16,12 +16,23 @@ export default async function NewDealPage({
   const presetCompanyId = typeof company_id === "string" ? company_id : "";
 
   const supabase = await createClient();
-  const [{ data: companyData }, { data: partnerData }] = await Promise.all([
-    supabase.from("companies").select("id, name").order("name", { ascending: true }),
-    supabase.from("partners").select("id, name").order("name", { ascending: true }),
-  ]);
+  const [{ data: companyData }, { data: partnerData }, { data: genreStatData }] =
+    await Promise.all([
+      supabase.from("companies").select("id, name").order("name", { ascending: true }),
+      supabase.from("partners").select("id, name").order("name", { ascending: true }),
+      supabase
+        .from("genre_stats")
+        .select("genre_id, name, is_active, sort_order, contracted_count")
+        .order("sort_order", { ascending: true }),
+    ]);
   const companies = (companyData ?? []) as Pick<Company, "id" | "name">[];
   const partners = (partnerData ?? []) as Pick<Partner, "id" | "name">[];
+  const genreOptions = ((genreStatData ?? []) as {
+    genre_id: string;
+    name: string;
+    is_active: boolean;
+    contracted_count: number;
+  }[]).filter((g) => g.is_active);
 
   return (
     <div className="mx-auto max-w-2xl px-8 py-10">
@@ -101,6 +112,45 @@ export default async function NewDealPage({
               パートナー未登録（紹介元を記録する場合は先にパートナーを登録してください）
             </p>
           )}
+        </div>
+
+        <div>
+          <label htmlFor="genre_id" className={labelCls}>
+            ジャンル{" "}
+            <span className="font-normal text-slate-400">
+              契約済みジャンルは優先度低（他ジャンルを狙う）
+            </span>
+          </label>
+          {genreOptions.length > 0 ? (
+            <select id="genre_id" name="genre_id" defaultValue="" className={field}>
+              <option value="">（未設定）</option>
+              {genreOptions.map((g) => (
+                <option key={g.genre_id} value={g.genre_id}>
+                  {g.name}
+                  {g.contracted_count > 0 ? "（契約済・優先度低）" : ""}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-400">
+              ジャンル未登録（ジャンルマスタ整備後に設定できます）
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label htmlFor="pb_status" className={labelCls}>
+            PB品の状態{" "}
+            <span className="font-normal text-slate-400">商談で確認したら更新</span>
+          </label>
+          <select id="pb_status" name="pb_status" defaultValue="" className={field}>
+            <option value="">（未確認）</option>
+            {Object.entries(PB_STATUS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>

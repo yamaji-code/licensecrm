@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
+  COMPANY_SIZE,
   COMPANY_STATUS,
   CONTACT_DECISION_ROLE,
   CONTACT_LEAD_TIME,
+  type CompanySize,
   type CompanyStatus,
   type ContactDecisionRole,
   type ContactLeadTime,
@@ -33,10 +35,13 @@ export async function createCompany(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const sizeValue = String(formData.get("company_size") ?? "");
+
   const { error } = await supabase.from("companies").insert({
     name,
     name_kana: str(formData.get("name_kana")),
     status: status as CompanyStatus,
+    company_size: sizeValue in COMPANY_SIZE ? (sizeValue as CompanySize) : null,
     industry: str(formData.get("industry")),
     phone: str(formData.get("phone")),
     website: str(formData.get("website")),
@@ -51,6 +56,31 @@ export async function createCompany(formData: FormData) {
 
   revalidatePath("/companies");
   redirect("/companies");
+}
+
+// 企業規模（大手/中小）の設定。リードタイムの規模別計測に使う。
+// 判定の目安: 直営・FC合計10店舗以上 or 従業員100名以上 or 上場（系列含む）→ 大手
+export async function updateCompanySize(formData: FormData) {
+  const id = str(formData.get("id"));
+  if (!id) {
+    throw new Error("会社IDが不正です。");
+  }
+  const sizeValue = String(formData.get("company_size") ?? "");
+  const companySize =
+    sizeValue in COMPANY_SIZE ? (sizeValue as CompanySize) : null;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("companies")
+    .update({ company_size: companySize })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`企業規模の更新に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/companies/${id}`);
+  revalidatePath("/companies");
 }
 
 export async function createContact(formData: FormData) {
