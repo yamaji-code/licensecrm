@@ -31,6 +31,71 @@ function parsePbStatus(value: FormDataEntryValue | null): PbStatus | null {
   return s in PB_STATUS ? (s as PbStatus) : null;
 }
 
+// JST 基準で「今日 + offset 日」の日付文字列（YYYY-MM-DD）を返す
+function jstDatePlusDays(offsetDays: number): string {
+  const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  return new Date(Date.now() + JST_OFFSET_MS + offsetDays * 86400000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+// ステージ入場時のタスク雛形展開（advanceDealStage / changeDealStage / applyStageTemplates 共通）。
+// 冪等: 同一案件×同一雛形は tasks の一意インデックス (deal_id, template_id) が二重展開を防ぎ、
+// アプリ側でも展開済み template_id を除外してから insert する。戻り値 = 追加した件数。
+async function expandStageTemplates(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  dealId: string,
+  companyId: string | null,
+  stage: DealStage,
+): Promise<number> {
+  const { data: templates, error: templateError } = await supabase
+    .from("stage_task_templates")
+    .select("id, title, department, due_offset_days")
+    .eq("stage", stage)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  if (templateError) {
+    throw new Error(`タスク雛形の取得に失敗しました: ${templateError.message}`);
+  }
+  if (!templates || templates.length === 0) {
+    return 0;
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("tasks")
+    .select("template_id")
+    .eq("deal_id", dealId)
+    .not("template_id", "is", null);
+  if (existingError) {
+    throw new Error(`既存タスクの確認に失敗しました: ${existingError.message}`);
+  }
+  const expanded = new Set((existing ?? []).map((t) => t.template_id as string));
+  const rows = templates
+    .filter((t) => !expanded.has(t.id as string))
+    .map((t) => ({
+      title: t.title as string,
+      status: "todo",
+      deal_id: dealId,
+      company_id: companyId,
+      template_id: t.id as string,
+      department: t.department as string,
+      due_date: jstDatePlusDays((t.due_offset_days as number) ?? 7),
+    }));
+  if (rows.length === 0) {
+    return 0;
+  }
+
+  const { error: insertError } = await supabase.from("tasks").insert(rows);
+  if (insertError) {
+    // 23505 = 一意制約違反。同時展開の競合で片方が先に入れたケースなので無害（結果は同じ）
+    if (insertError.code === "23505") {
+      return 0;
+    }
+    throw new Error(`雛形タスクの作成に失敗しました: ${insertError.message}`);
+  }
+  return rows.length;
+}
+
 function str(value: FormDataEntryValue | null): string | null {
   const s = typeof value === "string" ? value.trim() : "";
   return s === "" ? null : s;
@@ -121,8 +186,10 @@ export async function updateDeal(formData: FormData) {
   redirect(`/deals/${id}`);
 }
 
-// カンバンボードの「→ 次へ」用。タスクが全完了（未完了0件・かつ1件以上存在）
-// している案件だけを、パイプライン順の次ステージへ進める。
+// カンバンボードの「→ 次へ」用。必須タスク（雛形の is_required / 手動作成タスク）が
+// 全完了している案件だけを、パイプライン順の次ステージへ進める。
+// 任意タスク（雛形の is_required=false）は残っていても進める。
+// タスク0件の案件は従来どおりブロック（雛形未展開の移行案件は「雛形を適用」から）。
 // 条件はサーバー側で再検証する（クライアント改ざん・競合状態への防御）。
 export async function advanceDealStage(formData: FormData) {
   const id = str(formData.get("id"));
@@ -134,11 +201,17 @@ export async function advanceDealStage(formData: FormData) {
 
   const { data: deal, error: dealError } = await supabase
     .from("deals")
-    .select("id, stage")
+    .select("id, stage, company_id")
     .eq("id", id)
     .single();
   if (dealError || !deal) {
     throw new Error("案件が見つかりませんでした。");
+  }
+
+  // ボード表示時とサーバー処理時でステージが食い違ったら進めない（二重サブミット対策）
+  const fromStage = str(formData.get("from_stage"));
+  if (fromStage && fromStage !== deal.stage) {
+    throw new Error("既に他の画面でステージが変わっています。再読み込みしてください。");
   }
 
   // パイプライン順で次ステージを求める。進行外（nurturing/lost）や末尾（sv_ready）は進めない。
@@ -148,32 +221,85 @@ export async function advanceDealStage(formData: FormData) {
   }
   const nextStage = DEAL_STAGE_ORDER[currentIndex + 1];
 
-  // タスク全完了の再検証: 紐づくタスクを取得し、1件以上あり未完了が0件であることを確認する。
+  // 必須タスク全完了の再検証。
+  // 必須 = 手動作成タスク（template_id なし）+ 雛形タスクの is_required=true。
   const { data: tasks, error: taskError } = await supabase
     .from("tasks")
-    .select("status")
+    .select("status, template_id, stage_task_templates ( is_required )")
     .eq("deal_id", id);
   if (taskError) {
     throw new Error(`タスクの確認に失敗しました: ${taskError.message}`);
   }
   const total = tasks?.length ?? 0;
-  const open = (tasks ?? []).filter((t) => t.status !== "done").length;
-  if (total === 0 || open > 0) {
+  const openRequired = (tasks ?? []).filter((t) => {
+    if (t.status === "done") return false;
+    // to-one 埋め込みは実行時オブジェクト（型推論は配列になるため unknown 経由でキャスト）
+    const tmpl = t.stage_task_templates as unknown as {
+      is_required: boolean;
+    } | null;
+    return t.template_id === null || tmpl?.is_required !== false;
+  }).length;
+  if (total === 0 || openRequired > 0) {
     throw new Error(
-      "タスクが全て完了していないため、次のステージへ進められません。",
+      "必須タスクが完了していないため、次のステージへ進められません。",
     );
   }
 
+  // 楽観ロック付き更新: 現ステージのままの行だけを更新（同時進行なら0行更新=エラー）。
   // stage_events への記録は DB トリガー（log_stage_event）が自動で行う。
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("deals")
     .update({ stage: nextStage })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("stage", deal.stage)
+    .select("id");
   if (error) {
     throw new Error(`ステージ変更に失敗しました: ${error.message}`);
   }
+  if (!updated || updated.length === 0) {
+    throw new Error("既に他の画面でステージが変わっています。再読み込みしてください。");
+  }
+
+  // 新ステージのタスク雛形を自動展開（展開済み分は除外・二重展開はDBの一意制約でも防止）
+  const added = await expandStageTemplates(
+    supabase,
+    id,
+    deal.company_id as string | null,
+    nextStage,
+  );
 
   revalidatePath("/deals");
+  redirect(`/deals?advanced=${id}&to=${nextStage}&added=${added}`);
+}
+
+// 案件詳細の「雛形を適用」用。現ステージの雛形タスクを後から展開する
+// （移行案件などタスク0件のままステージに滞在している案件の救済）。
+export async function applyStageTemplates(formData: FormData) {
+  const id = str(formData.get("id"));
+  if (!id) {
+    throw new Error("案件IDが不正です。");
+  }
+
+  const supabase = await createClient();
+  const { data: deal, error: dealError } = await supabase
+    .from("deals")
+    .select("id, stage, company_id")
+    .eq("id", id)
+    .single();
+  if (dealError || !deal) {
+    throw new Error("案件が見つかりませんでした。");
+  }
+
+  await expandStageTemplates(
+    supabase,
+    id,
+    deal.company_id as string | null,
+    deal.stage as DealStage,
+  );
+
+  revalidatePath(`/deals/${id}`);
+  revalidatePath("/deals");
+  redirect(`/deals/${id}`);
 }
 
 export async function changeDealStage(formData: FormData) {
@@ -188,6 +314,15 @@ export async function changeDealStage(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const { data: current, error: currentError } = await supabase
+    .from("deals")
+    .select("id, stage, company_id")
+    .eq("id", id)
+    .single();
+  if (currentError || !current) {
+    throw new Error("案件が見つかりませんでした。");
+  }
+
   // stage_events への記録は DB トリガー（log_stage_event）が自動で行う。
   // stage_events は RLS で直接 insert が禁止されているため、ここでは deals.stage の update のみ行う。
   const { error } = await supabase
@@ -197,6 +332,20 @@ export async function changeDealStage(formData: FormData) {
 
   if (error) {
     throw new Error(`ステージ変更に失敗しました: ${error.message}`);
+  }
+
+  // 雛形展開: 前方移動（パイプライン順で前進）と nurturing（再アプローチ管理タスク）のみ。
+  // 後退・lost への移動では展開しない。
+  const fromIndex = DEAL_STAGE_ORDER.indexOf(current.stage as DealStage);
+  const toIndex = DEAL_STAGE_ORDER.indexOf(stage as DealStage);
+  const isForward = toIndex >= 0 && toIndex > fromIndex;
+  if (isForward || stage === "nurturing") {
+    await expandStageTemplates(
+      supabase,
+      id,
+      current.company_id as string | null,
+      stage as DealStage,
+    );
   }
 
   revalidatePath(`/deals/${id}`);

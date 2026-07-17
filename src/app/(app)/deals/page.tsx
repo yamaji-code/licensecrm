@@ -54,9 +54,13 @@ export default async function DealsPage({
     view?: string;
     expand?: string | string[];
     genre?: string | string[];
+    advanced?: string | string[];
+    to?: string | string[];
+    added?: string | string[];
   }>;
 }) {
-  const { stage, view, expand, genre } = await searchParams;
+  const { stage, view, expand, genre, advanced, to, added } =
+    await searchParams;
   // 表示モード: 既定はボード。table を指定したときだけ表形式。
   const isTable = view === "table";
   // 表示密度: cookie 保存（トグルは Server Action setBoardDensity）
@@ -99,7 +103,10 @@ export default async function DealsPage({
     { data: genreStatData },
   ] = await Promise.all([
     query,
-    supabase.from("tasks").select("deal_id, status").not("deal_id", "is", null),
+    supabase
+      .from("tasks")
+      .select("deal_id, status, template_id, stage_task_templates ( is_required )")
+      .not("deal_id", "is", null),
     supabase
       .from("genres")
       .select("id, name")
@@ -117,15 +124,34 @@ export default async function DealsPage({
       .map((g) => g.genre_id as string),
   );
 
-  // 案件ごとのタスク集計（全体件数 / 未完了件数）。
-  // 全完了（total>0 かつ open===0）= 次ステージへ進める、total===0 = 次アクション未設定。
+  // ステージ前進直後のフラッシュ表示（advanceDealStage の redirect パラメータ）。
+  // 実在する案件のときだけ表示する（URL 直叩き・リロード時の誤表示防止）。
+  const advancedDeal =
+    typeof advanced === "string"
+      ? deals.find((d) => d.id === advanced) ?? null
+      : null;
+  const advancedTo =
+    typeof to === "string" && to in DEAL_STAGE ? (to as DealStage) : null;
+  const advancedAdded =
+    typeof added === "string" && /^\d+$/.test(added) ? Number(added) : 0;
+
+  // 案件ごとのタスク集計。
+  // total===0 = 次アクション未設定。必須未完了0（かつ total>0）= 次ステージへ進める
+  // （必須 = 手動作成タスク + 雛形の is_required=true。サーバー側 advanceDealStage と同一基準）。
   const totalByDeal = new Map<string, number>();
   const openByDeal = new Map<string, number>();
+  const openRequiredByDeal = new Map<string, number>();
   for (const t of taskData ?? []) {
     const id = t.deal_id as string;
     totalByDeal.set(id, (totalByDeal.get(id) ?? 0) + 1);
     if (t.status !== "done") {
       openByDeal.set(id, (openByDeal.get(id) ?? 0) + 1);
+      const tmpl = t.stage_task_templates as unknown as {
+        is_required: boolean;
+      } | null;
+      if (t.template_id === null || tmpl?.is_required !== false) {
+        openRequiredByDeal.set(id, (openRequiredByDeal.get(id) ?? 0) + 1);
+      }
     }
   }
 
@@ -206,6 +232,22 @@ export default async function DealsPage({
         </p>
       )}
 
+      {advancedDeal && advancedTo && (
+        <div className="mb-4 flex items-center justify-between rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <p>
+            「{advancedDeal.title}」を{DEAL_STAGE[advancedTo]}へ進めました。
+            {advancedAdded > 0 &&
+              `タスク ${advancedAdded} 件を自動追加しました。`}
+          </p>
+          <Link
+            href="/deals"
+            className="ml-4 shrink-0 text-xs font-medium text-emerald-700 hover:underline"
+          >
+            閉じる
+          </Link>
+        </div>
+      )}
+
       {isTable ? (
         <TableView
           deals={deals}
@@ -219,6 +261,7 @@ export default async function DealsPage({
           deals={deals}
           totalByDeal={totalByDeal}
           openByDeal={openByDeal}
+          openRequiredByDeal={openRequiredByDeal}
           density={density}
           expandSet={expandSet}
           contractedGenreIds={contractedGenreIds}
@@ -246,6 +289,7 @@ function BoardView({
   deals,
   totalByDeal,
   openByDeal,
+  openRequiredByDeal,
   density,
   expandSet,
   contractedGenreIds,
@@ -253,6 +297,7 @@ function BoardView({
   deals: DealWithRelations[];
   totalByDeal: Map<string, number>;
   openByDeal: Map<string, number>;
+  openRequiredByDeal: Map<string, number>;
   density: Density;
   expandSet: Set<string>;
   contractedGenreIds: Set<string>;
@@ -343,6 +388,7 @@ function BoardView({
                           deal={d}
                           total={totalByDeal.get(d.id) ?? 0}
                           open={openByDeal.get(d.id) ?? 0}
+                          openRequired={openRequiredByDeal.get(d.id) ?? 0}
                           density={density}
                           contractedGenreIds={contractedGenreIds}
                         />
@@ -363,12 +409,14 @@ function DealCard({
   deal,
   total,
   open,
+  openRequired,
   density,
   contractedGenreIds,
 }: {
   deal: DealWithRelations;
   total: number;
   open: number;
+  openRequired: number;
   density: Density;
   contractedGenreIds: Set<string>;
 }) {
@@ -376,8 +424,9 @@ function DealCard({
   const orderIndex = DEAL_STAGE_ORDER.indexOf(deal.stage);
   const hasNextStage =
     orderIndex >= 0 && orderIndex < DEAL_STAGE_ORDER.length - 1;
-  const allTasksDone = total > 0 && open === 0;
-  const canAdvance = hasNextStage && allTasksDone;
+  // 必須タスク（手動 + 雛形 is_required）が全完了なら進行可（任意タスクは残っていてよい）
+  const allRequiredDone = total > 0 && openRequired === 0;
+  const canAdvance = hasNextStage && allRequiredDone;
   const nextLabel = hasNextStage
     ? DEAL_STAGE[DEAL_STAGE_ORDER[orderIndex + 1]]
     : null;
@@ -431,6 +480,7 @@ function DealCard({
         {canAdvance ? (
           <form action={advanceDealStage}>
             <input type="hidden" name="id" value={deal.id} />
+            <input type="hidden" name="from_stage" value={deal.stage} />
             <button
               type="submit"
               title={`${nextLabel}へ進む`}
@@ -441,17 +491,17 @@ function DealCard({
               {isCompact ? "→ 次へ" : `→ ${nextLabel}へ進む`}
             </button>
           </form>
-        ) : open > 0 ? (
+        ) : openRequired > 0 ? (
           <span
             className={isCompact ? "text-[10px] text-slate-500" : "text-[11px] text-slate-500"}
           >
-            残タスク {open} 件
+            必須タスク残 {openRequired} 件
           </span>
-        ) : allTasksDone && !hasNextStage ? (
+        ) : allRequiredDone && !hasNextStage ? (
           <span
             className={isCompact ? "text-[10px] text-emerald-600" : "text-[11px] text-emerald-600"}
           >
-            タスク完了
+            {open > 0 ? `任意タスク残 ${open} 件` : "タスク完了"}
           </span>
         ) : !isClosed ? (
           <Link

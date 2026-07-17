@@ -2,7 +2,7 @@ import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { changeDealStage, updateDeal } from "../actions";
+import { applyStageTemplates, changeDealStage, updateDeal } from "../actions";
 import { toggleTaskDone } from "../../tasks/actions";
 import {
   CLOSED_DEAL_STAGES,
@@ -183,14 +183,24 @@ export default async function DealDetailPage({
           <h2 className="text-sm font-medium text-slate-500">
             次アクション{openTasks.length > 0 ? `（${openTasks.length} 件）` : ""}
           </h2>
-          {openTasks.length > 0 && (
+          <span className="flex items-center gap-3">
+            {/* 現ステージの雛形タスクを後から展開する（移行案件などタスク未展開の救済） */}
+            <form action={applyStageTemplates}>
+              <input type="hidden" name="id" value={deal.id} />
+              <button
+                type="submit"
+                className="text-xs text-slate-500 hover:text-slate-900 hover:underline"
+              >
+                雛形から追加
+              </button>
+            </form>
             <Link
               href={`/tasks/new?deal_id=${deal.id}`}
               className="text-xs text-slate-500 hover:text-slate-900 hover:underline"
             >
               + 追加
             </Link>
-          )}
+          </span>
         </div>
 
         {openTasks.length > 0 ? (
