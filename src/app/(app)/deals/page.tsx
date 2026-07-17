@@ -280,7 +280,7 @@ export default async function DealsPage({
           stageFilter={stageFilter}
           genreFilter={genreFilter}
           genres={genres}
-          openByDeal={openByDeal}
+          totalByDeal={totalByDeal}
         />
       ) : (
         // 残りの高さを占め、この中で横スクロール・列内の縦スクロールが完結する
@@ -506,7 +506,18 @@ function DealCard({
           isCompact ? "mt-1.5" : "mt-2.5 border-t border-slate-100 pt-2.5"
         }
       >
-        {canAdvance ? (
+        {isClosed ? (
+          // 進行外（SV案内可能/時期見送り/失注）は進行文言を出さず中立表示にする
+          open > 0 ? (
+            <span
+              className={isCompact ? "text-[10px] text-slate-500" : "text-[11px] text-slate-500"}
+            >
+              残タスク {open} 件
+            </span>
+          ) : (
+            <span className="text-[11px] text-slate-300">—</span>
+          )
+        ) : canAdvance ? (
           <form action={advanceDealStage}>
             <input type="hidden" name="id" value={deal.id} />
             <input type="hidden" name="from_stage" value={deal.stage} />
@@ -526,13 +537,8 @@ function DealCard({
           >
             必須タスク残 {openRequired} 件
           </span>
-        ) : allRequiredDone && !hasNextStage ? (
-          <span
-            className={isCompact ? "text-[10px] text-emerald-600" : "text-[11px] text-emerald-600"}
-          >
-            {open > 0 ? `任意タスク残 ${open} 件` : "タスク完了"}
-          </span>
-        ) : !isClosed ? (
+        ) : (
+          // アクティブ案件でタスク0件 = 次アクション未設定
           <Link
             href={`/tasks/new?deal_id=${deal.id}`}
             className={`inline-block rounded-full bg-red-50 px-2 py-0.5 font-medium text-red-700 hover:bg-red-100 ${
@@ -541,8 +547,6 @@ function DealCard({
           >
             次アクション未設定
           </Link>
-        ) : (
-          <span className="text-[11px] text-slate-300">—</span>
         )}
       </div>
     </div>
@@ -556,13 +560,13 @@ function TableView({
   stageFilter,
   genreFilter,
   genres,
-  openByDeal,
+  totalByDeal,
 }: {
   deals: DealWithRelations[];
   stageFilter: DealStage | null;
   genreFilter: string | null;
   genres: { id: string; name: string }[];
-  openByDeal: Map<string, number>;
+  totalByDeal: Map<string, number>;
 }) {
   return (
     <>
@@ -645,7 +649,7 @@ function TableView({
                         {DEAL_STAGE[d.stage]}
                       </span>
                       {!CLOSED_DEAL_STAGES.includes(d.stage) &&
-                        (openByDeal.get(d.id) ?? 0) === 0 && (
+                        (totalByDeal.get(d.id) ?? 0) === 0 && (
                           <span className="whitespace-nowrap rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
                             次アクション未設定
                           </span>

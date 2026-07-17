@@ -26,9 +26,20 @@ export async function setBoardDensity(formData: FormData) {
 }
 
 // フォーム値から pb_status を検証して返す（不正値・未指定は null）
+// Object.hasOwn を使う（`in` は prototype のキー(toString 等)も真になり許可リストを迂回するため）
 function parsePbStatus(value: FormDataEntryValue | null): PbStatus | null {
   const s = typeof value === "string" ? value : "";
-  return s in PB_STATUS ? (s as PbStatus) : null;
+  return Object.hasOwn(PB_STATUS, s) ? (s as PbStatus) : null;
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// フォーム値から genre_id を検証して返す（uuid 形式でなければ null）。
+// FK 制約が最終防波堤だが、pb_status と同様にアプリ層でも検証し不正値で生の DB エラーを露出させない。
+function parseGenreId(value: FormDataEntryValue | null): string | null {
+  const s = typeof value === "string" ? value.trim() : "";
+  return UUID_RE.test(s) ? s : null;
 }
 
 // JST 基準で「今日 + offset 日」の日付文字列（YYYY-MM-DD）を返す
@@ -85,15 +96,25 @@ async function expandStageTemplates(
     return 0;
   }
 
-  const { error: insertError } = await supabase.from("tasks").insert(rows);
-  if (insertError) {
-    // 23505 = 一意制約違反。同時展開の競合で片方が先に入れたケースなので無害（結果は同じ）
-    if (insertError.code === "23505") {
-      return 0;
-    }
-    throw new Error(`雛形タスクの作成に失敗しました: ${insertError.message}`);
-  }
-  return rows.length;
+  // 1件ずつ挿入する（バッチだと1行でも一意制約(23505)に当たると全行ロールバックし、
+  // 同時展開が起きたとき本当に新規な行まで失われる）。件数は最大でも数件なので並列で十分。
+  // 23505 = すでに他の展開が入れた行 → 無害なのでスキップしてカウントしない。
+  const inserted = await Promise.all(
+    rows.map((row) =>
+      supabase
+        .from("tasks")
+        .insert(row)
+        .then(({ error }) => {
+          if (error && error.code !== "23505") {
+            throw new Error(
+              `雛形タスクの作成に失敗しました: ${error.message}`,
+            );
+          }
+          return error ? 0 : 1;
+        }),
+    ),
+  );
+  return inserted.reduce<number>((sum, n) => sum + n, 0);
 }
 
 function str(value: FormDataEntryValue | null): string | null {
@@ -113,7 +134,7 @@ export async function createDeal(formData: FormData) {
   }
 
   const channel = String(formData.get("channel") ?? "");
-  if (!(channel in DEAL_CHANNEL)) {
+  if (!Object.hasOwn(DEAL_CHANNEL, channel)) {
     throw new Error("獲得チャネルの値が不正です。");
   }
 
@@ -133,7 +154,7 @@ export async function createDeal(formData: FormData) {
       title,
       channel: channel as DealChannel,
       partner_id: partnerId,
-      genre_id: str(formData.get("genre_id")),
+      genre_id: parseGenreId(formData.get("genre_id")),
       pb_status: parsePbStatus(formData.get("pb_status")),
       note: str(formData.get("note")),
       owner_id: user?.id ?? null,
@@ -173,7 +194,7 @@ export async function updateDeal(formData: FormData) {
     .from("deals")
     .update({
       note: str(formData.get("note")),
-      genre_id: str(formData.get("genre_id")),
+      genre_id: parseGenreId(formData.get("genre_id")),
       pb_status: parsePbStatus(formData.get("pb_status")),
     })
     .eq("id", id);
@@ -309,7 +330,7 @@ export async function changeDealStage(formData: FormData) {
   }
 
   const stage = String(formData.get("stage") ?? "");
-  if (!(stage in DEAL_STAGE)) {
+  if (!Object.hasOwn(DEAL_STAGE, stage)) {
     throw new Error("ステージの値が不正です。");
   }
 

@@ -112,8 +112,9 @@ create unique index if not exists tasks_deal_id_template_id_idx
 
 -- =========================================================
 -- stage_durations: 各案件×各ステージの滞在日数（リードタイム計測の源泉）
--- is_first_event: 旧CRM移行分は初回イベント時刻が人工のため、
--- リードタイム集計では (migrated_from_legacy and is_first_event) 起点の区間を表示層で除外する。
+-- is_first_event: 旧CRM移行分は遷移日時が実日付バックフィルの近似のため、
+-- リードタイム集計は表示層で migrated_from_legacy の区間を全除外する（近似値を実測として見せない）。
+-- is_first_event 列は、将来「初回イベント起点だけ除外」の細粒度に切り替えたくなった時のために残す。
 -- =========================================================
 create or replace view public.stage_durations
   with (security_invoker = true)

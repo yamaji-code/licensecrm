@@ -74,7 +74,7 @@ export default async function DealDetailPage({
     { data: taskData, error: taskError },
     { data: meetingData, error: meetingError },
     { data: knowledgeData, error: knowledgeError },
-    { data: genreStatData },
+    { data: genreStatData, error: genreStatError },
   ] = await Promise.all([
     supabase
       .from("deals")
@@ -120,19 +120,33 @@ export default async function DealDetailPage({
   // 副次クエリの読み取り失敗は、履歴やMTGが「無い」ように見せず障害として明示する
   // （空表示との誤認を防ぐ。RLS拒否は空配列を返すためここには乗らない）
   const secondaryError =
-    eventError ?? taskError ?? meetingError ?? knowledgeError;
+    eventError ?? taskError ?? meetingError ?? knowledgeError ?? genreStatError;
 
   const deal = dealData as DealDetail;
   const stageEvents = (eventData ?? []) as StageEvent[];
   const openTasks = (taskData ?? []) as Task[];
   const meetings = (meetingData ?? []) as Meeting[];
   const relatedKnowledge = (knowledgeData ?? []) as KnowledgeCard[];
-  const genreOptions = ((genreStatData ?? []) as {
+  const activeGenres = ((genreStatData ?? []) as {
     genre_id: string;
     name: string;
     is_active: boolean;
     contracted_count: number;
   }[]).filter((g) => g.is_active);
+  // 現在のジャンルが非活性・取得失敗で選択肢から漏れると、メモだけ編集して保存した時に
+  // ブラウザが先頭（未設定）を送り genre_id が黙って null に消える。必ず現在値を選択肢に残す。
+  const genreOptions =
+    deal.genre_id && !activeGenres.some((g) => g.genre_id === deal.genre_id)
+      ? [
+          {
+            genre_id: deal.genre_id,
+            name: deal.genres?.name ?? "（無効なジャンル）",
+            is_active: false,
+            contracted_count: 0,
+          },
+          ...activeGenres,
+        ]
+      : activeGenres;
   // 次アクション空白禁止ルールの対象（SV案内可能/時期見送り/失注は対象外）
   const isActiveDeal = !CLOSED_DEAL_STAGES.includes(deal.stage);
 

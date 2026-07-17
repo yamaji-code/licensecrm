@@ -35,7 +35,7 @@ export default async function Dashboard() {
     { data: recentTasks },
     { data: kpiFactsData, error: kpiFactsError },
     { data: dealStageData, error: dealStageError },
-    { data: openDealTaskData, error: openDealTaskError },
+    { data: dealTaskData, error: dealTaskError },
     { data: durationData },
     { data: genreStatData },
   ] = await Promise.all([
@@ -54,11 +54,9 @@ export default async function Dashboard() {
     // （設計書 5節: 「JSでフィルタしてよい、DB量は小さい」前提）
     supabase.from("deal_kpi_facts").select("*"),
     supabase.from("deals").select("id, stage"),
-    supabase
-      .from("tasks")
-      .select("deal_id")
-      .not("deal_id", "is", null)
-      .neq("status", "done"),
+    // 案件に紐づく全タスク（完了含む）。「タスクが1件も無い＝次アクション未設定」の判定に使う
+    // （ボードの赤バッジと同じ基準にする。全完了で"進める"案件は未設定扱いにしない）
+    supabase.from("tasks").select("deal_id").not("deal_id", "is", null),
     // 規模別リードタイム（stage_durations ビュー）。滞在確定分だけを集計に使う
     supabase.from("stage_durations").select("*"),
     // ジャンル獲得マップ（genre_stats ビュー）
@@ -70,9 +68,9 @@ export default async function Dashboard() {
 
   // KPI 集計クエリが失敗した場合（0002 未適用・RLS 失敗など）は、
   // 「商談 0/20・契約 0/2」を実データと誤認させないためエラーを検知する。
-  // openDealTaskData の失敗は「次アクション未設定」の誤カウントにつながるため併せて検知する。
+  // dealTaskData の失敗は「次アクション未設定」の誤カウントにつながるため併せて検知する。
   // deals/page.tsx・tasks/page.tsx と同じ「読み込みエラー」バナー方針に合わせる。
-  const kpiError = kpiFactsError ?? dealStageError ?? openDealTaskError;
+  const kpiError = kpiFactsError ?? dealStageError ?? dealTaskError;
 
   // 注意（山路さん確認事項 #9・未確定）: 設計§5 は「商談を経ず契約直行した案件」を
   // coalesce(first_meeting_at, first_contract_at) で救済する案があるが、ビュー・集計とも未実装。
@@ -120,13 +118,13 @@ export default async function Dashboard() {
     },
   );
 
-  // --- 次アクション未設定のアクティブ案件件数（/deals 一覧と同じロジック） ---
+  // --- 次アクション未設定のアクティブ案件件数（ボードの赤バッジと同じ「タスク0件」基準） ---
   const dealStages = (dealStageData ?? []) as Pick<Deal, "id" | "stage">[];
-  const dealsWithOpenTask = new Set(
-    (openDealTaskData ?? []).map((t) => t.deal_id as string),
+  const dealsWithAnyTask = new Set(
+    (dealTaskData ?? []).map((t) => t.deal_id as string),
   );
   const noNextActionCount = dealStages.filter(
-    (d) => !CLOSED_DEAL_STAGES.includes(d.stage) && !dealsWithOpenTask.has(d.id),
+    (d) => !CLOSED_DEAL_STAGES.includes(d.stage) && !dealsWithAnyTask.has(d.id),
   ).length;
 
   // --- 規模別リードタイム（ステージ滞在日数の中央値） ---
