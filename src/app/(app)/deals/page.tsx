@@ -164,8 +164,16 @@ export default async function DealsPage({
   }
 
   return (
-    <div className={isTable ? "mx-auto max-w-5xl px-8 py-10" : "px-6 py-10"}>
-      <header className="mb-6 flex items-center justify-between">
+    <div
+      className={
+        isTable
+          ? "mx-auto max-w-5xl px-8 py-10"
+          : // ボードは画面高さに固定し、ヘッダー/KPIバーは動かさず、
+            // 案件の列だけを内側でスクロールさせる
+            "flex h-full flex-col px-6 pb-4 pt-6"
+      }
+    >
+      <header className="mb-4 flex shrink-0 items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">案件</h1>
           <p className="mt-1 text-sm text-slate-500">{deals.length} 件</p>
@@ -275,15 +283,18 @@ export default async function DealsPage({
           openByDeal={openByDeal}
         />
       ) : (
-        <BoardView
-          deals={deals}
-          totalByDeal={totalByDeal}
-          openByDeal={openByDeal}
-          openRequiredByDeal={openRequiredByDeal}
-          density={density}
-          expandSet={expandSet}
-          contractedGenreIds={contractedGenreIds}
-        />
+        // 残りの高さを占め、この中で横スクロール・列内の縦スクロールが完結する
+        <div className="min-h-0 flex-1">
+          <BoardView
+            deals={deals}
+            totalByDeal={totalByDeal}
+            openByDeal={openByDeal}
+            openRequiredByDeal={openRequiredByDeal}
+            density={density}
+            expandSet={expandSet}
+            contractedGenreIds={contractedGenreIds}
+          />
+        </div>
       )}
     </div>
   );
@@ -329,17 +340,17 @@ function BoardView({
   const cls = DENSITY[density];
 
   return (
-    <div className="flex items-stretch gap-5 overflow-x-auto pb-4">
+    <div className="flex h-full items-stretch gap-5 overflow-x-auto pb-2">
       {STAGE_GROUPS.map((group) => (
-        <div key={group.key} className="flex shrink-0 flex-col">
+        <div key={group.key} className="flex h-full shrink-0 flex-col">
           {/* 列グループ帯（リード / 営業 / 契約・ブランド化 / 進行外） */}
-          <div className="mb-1.5 flex items-center gap-2 px-1">
+          <div className="mb-1.5 flex shrink-0 items-center gap-2 px-1">
             <span className="text-[11px] font-medium tracking-wide text-slate-400">
               {group.label}
             </span>
             <span className="h-px min-w-6 flex-1 bg-slate-200" />
           </div>
-          <div className="flex flex-1 items-stretch gap-3">
+          <div className="flex min-h-0 flex-1 items-stretch gap-3">
             {group.stages.map((col) => {
               const items = byStage.get(col) ?? [];
               const collapsible = COLLAPSIBLE_COLUMNS.includes(col);
@@ -393,7 +404,7 @@ function BoardView({
                     </span>
                   </div>
                   <div
-                    className={`flex max-h-[calc(100vh-260px)] flex-col overflow-y-auto ${cls.colBody}`}
+                    className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${cls.colBody}`}
                   >
                     {items.length === 0 ? (
                       <p className="px-1 py-6 text-center text-xs text-slate-300">
