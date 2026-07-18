@@ -214,7 +214,12 @@ export default async function DealsPage({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {!isTable && <DensityToggle density={density} />}
+            {/* 密度切替はボードにしか効かない。ボードは lg 以上でしか出さないので揃える */}
+            {!isTable && (
+              <span className="hidden lg:inline-flex">
+                <DensityToggle density={density} />
+              </span>
+            )}
             <Segmented
               label="表示形式"
               active={isTable ? "table" : "board"}
@@ -291,18 +296,17 @@ export default async function DealsPage({
         />
       ) : (
         <>
-          {/* 狭い画面は列を横に並べられないので一覧へ誘導する */}
+          {/* 狭い画面は列を横に並べられないので、ステージ順のリストに落とす
+              （空のボードと誘導文だけを出すと、何も見られない画面になるため） */}
           <div className="lg:hidden">
-            <Banner tone="info">
-              ボードは横に広い画面向けです。この画面幅では
-              <Link
-                href="/deals?view=table"
-                className="mx-1 font-medium underline underline-offset-2"
-              >
-                一覧表示
-              </Link>
-              が見やすいです。
-            </Banner>
+            <DealMobileList
+              deals={[...deals].sort(
+                (a, b) =>
+                  BOARD_COLUMNS.indexOf(a.stage) -
+                  BOARD_COLUMNS.indexOf(b.stage),
+              )}
+              countsByDeal={countsByDeal}
+            />
           </div>
           {/* 残りの高さを占め、この中で横スクロール・列内の縦スクロールが完結する */}
           <div className="hidden min-h-0 flex-1 lg:block">
@@ -637,38 +641,60 @@ function TableView({
             </Table>
           </Card>
 
-          <ul className="space-y-2 sm:hidden">
-            {deals.map((d) => (
-              <li key={d.id}>
-                <Link
-                  href={`/deals/${d.id}`}
-                  className="block rounded-card border border-line bg-white px-4 py-3 shadow-card transition-colors hover:border-brand-200"
-                >
-                  <p className="font-medium text-ink">
-                    {displayDealTitle(d.title, d.companies?.name)}
-                  </p>
-                  <p className="mt-0.5 text-xs text-ink-soft">
-                    {d.companies?.name ?? "取引先未設定"}
-                  </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        STAGE_BADGE_STYLE[d.stage]
-                      }`}
-                    >
-                      {DEAL_STAGE[d.stage]}
-                    </span>
-                    {isOverdue(d.id) && <Chip tone="danger">期限切れ</Chip>}
-                    {needsAction(d.id, d.stage) && (
-                      <Chip tone="warn">次アクション未設定</Chip>
-                    )}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="sm:hidden">
+            <DealMobileList deals={deals} countsByDeal={countsByDeal} />
+          </div>
         </>
       )}
     </>
+  );
+}
+
+/*
+ * 狭い画面用の案件リスト。ボード（列を横に並べられない）と一覧（表が潰れる）の
+ * 両方から使うので、表示のばらつきが出ないよう1か所に持つ。
+ */
+function DealMobileList({
+  deals,
+  countsByDeal,
+}: {
+  deals: DealWithRelations[];
+  countsByDeal: Map<string, DealCounts>;
+}) {
+  return (
+    <ul className="space-y-2">
+      {deals.map((d) => {
+        const counts = countsByDeal.get(d.id);
+        const overdue = (counts?.overdue ?? 0) > 0;
+        const needsAction =
+          !CLOSED_DEAL_STAGES.includes(d.stage) && (counts?.total ?? 0) === 0;
+        return (
+          <li key={d.id}>
+            <Link
+              href={`/deals/${d.id}`}
+              className="block rounded-card border border-line bg-white px-4 py-3 shadow-card transition-colors hover:border-brand-200"
+            >
+              <p className="font-medium text-ink">
+                {displayDealTitle(d.title, d.companies?.name)}
+              </p>
+              <p className="mt-0.5 text-xs text-ink-soft">
+                {d.companies?.name ?? "取引先未設定"}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    STAGE_BADGE_STYLE[d.stage]
+                  }`}
+                >
+                  {DEAL_STAGE[d.stage]}
+                </span>
+                {overdue && <Chip tone="danger">期限切れ</Chip>}
+                {needsAction && <Chip tone="warn">次アクション未設定</Chip>}
+              </div>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

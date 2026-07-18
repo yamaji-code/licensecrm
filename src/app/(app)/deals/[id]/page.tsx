@@ -5,6 +5,7 @@ import {
 } from "@/components/badges";
 import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
+import { displayDealTitle } from "../board-card";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { applyStageTemplates, changeDealStage, updateDeal } from "../actions";
@@ -174,7 +175,8 @@ export default async function DealDetailPage({
   return (
     <PageShell>
       <PageHeader
-        title={deal.title}
+        // 会社名は右レールに出るので、案件名側の重複（移行データ由来）は畳む
+        title={displayDealTitle(deal.title, deal.companies?.name)}
         meta={
           <span
             className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_BADGE_STYLE[deal.stage]}`}
@@ -277,7 +279,9 @@ export default async function DealDetailPage({
             ) : isActiveDeal ? (
               <CardBody>
                 <Banner
-                  tone="danger"
+                  // 赤は期限切れ・取り消せない操作・読み込み失敗だけに使う。
+                  // 未設定はボード/ダッシュボードでも注意色なので合わせる
+                  tone="warn"
                   title="次のアクションが設定されていません"
                   actions={
                     <ButtonLink
