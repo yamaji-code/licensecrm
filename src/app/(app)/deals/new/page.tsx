@@ -35,7 +35,7 @@ export default async function NewDealPage({
   }[]).filter((g) => g.is_active);
 
   return (
-    <div className="mx-auto max-w-2xl px-8 py-10">
+    <div className="px-8 py-10">
       <div className="mb-6">
         <Link href="/deals" className="text-sm text-slate-500 hover:text-slate-900">
           ← 案件一覧

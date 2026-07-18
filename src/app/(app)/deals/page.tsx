@@ -16,6 +16,7 @@ import {
 import { advanceDealStage, setBoardDensity } from "./actions";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { KpiBar } from "@/components/kpi-bar";
+import { DraggableCard, DropColumn } from "@/components/board-dnd";
 import { summarizeQuarterKpi } from "@/lib/kpi";
 
 // カンバンの列順は STAGE_GROUPS（types.ts）を単一ソースにする。
@@ -167,7 +168,7 @@ export default async function DealsPage({
     <div
       className={
         isTable
-          ? "mx-auto max-w-5xl px-8 py-10"
+          ? "px-8 py-10"
           : // ボードは画面高さに固定し、ヘッダー/KPIバーは動かさず、
             // 案件の列だけを内側でスクロールさせる
             "flex h-full flex-col px-6 pb-4 pt-6"
@@ -357,21 +358,23 @@ function BoardView({
               const collapsed = collapsible && !expandSet.has(col);
 
               if (collapsed) {
+                // 折りたたみ帯もドロップ先にする（カードを落として時期見送り/失注へ移せる）
                 return (
-                  <Link
-                    key={col}
-                    id={`col-${col}`}
-                    href={expandHref(expandSet, col, true)}
-                    title={`${DEAL_STAGE[col]}（${items.length}件）を開く`}
-                    className="flex w-12 shrink-0 flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 py-3 transition hover:bg-slate-100"
-                  >
-                    <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">
-                      {items.length}
-                    </span>
-                    <span className="text-xs font-medium text-slate-500 [writing-mode:vertical-rl]">
-                      {DEAL_STAGE[col]}
-                    </span>
-                  </Link>
+                  <DropColumn key={col} stage={col} className="flex w-12 shrink-0">
+                    <Link
+                      id={`col-${col}`}
+                      href={expandHref(expandSet, col, true)}
+                      title={`${DEAL_STAGE[col]}（${items.length}件）を開く・ここに落として移動`}
+                      className="flex w-full flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 py-3 transition hover:bg-slate-100"
+                    >
+                      <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">
+                        {items.length}
+                      </span>
+                      <span className="text-xs font-medium text-slate-500 [writing-mode:vertical-rl]">
+                        {DEAL_STAGE[col]}
+                      </span>
+                    </Link>
+                  </DropColumn>
                 );
               }
 
@@ -403,7 +406,8 @@ function BoardView({
                       )}
                     </span>
                   </div>
-                  <div
+                  <DropColumn
+                    stage={col}
                     className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${cls.colBody}`}
                   >
                     {items.length === 0 ? (
@@ -412,18 +416,19 @@ function BoardView({
                       </p>
                     ) : (
                       items.map((d) => (
-                        <DealCard
-                          key={d.id}
-                          deal={d}
-                          total={totalByDeal.get(d.id) ?? 0}
-                          open={openByDeal.get(d.id) ?? 0}
-                          openRequired={openRequiredByDeal.get(d.id) ?? 0}
-                          density={density}
-                          contractedGenreIds={contractedGenreIds}
-                        />
+                        <DraggableCard key={d.id} dealId={d.id}>
+                          <DealCard
+                            deal={d}
+                            total={totalByDeal.get(d.id) ?? 0}
+                            open={openByDeal.get(d.id) ?? 0}
+                            openRequired={openRequiredByDeal.get(d.id) ?? 0}
+                            density={density}
+                            contractedGenreIds={contractedGenreIds}
+                          />
+                        </DraggableCard>
                       ))
                     )}
-                  </div>
+                  </DropColumn>
                 </section>
               );
             })}

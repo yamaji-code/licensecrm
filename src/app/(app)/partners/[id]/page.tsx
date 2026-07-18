@@ -94,7 +94,7 @@ export default async function PartnerDetailPage({
   const dealOptions = (dealOptionData ?? []) as DealOption[];
 
   return (
-    <div className="mx-auto max-w-4xl px-8 py-10">
+    <div className="px-8 py-10">
       <div className="mb-6">
         <Link href="/partners" className="text-sm text-slate-500 hover:text-slate-900">
           ← パートナー一覧

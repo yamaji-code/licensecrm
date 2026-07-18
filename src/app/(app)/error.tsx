@@ -19,7 +19,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="mx-auto max-w-2xl px-8 py-16">
+    <div className="px-8 py-16">
       <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
         <h1 className="text-lg font-semibold text-red-800">
           処理に失敗しました

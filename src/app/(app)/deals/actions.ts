@@ -373,3 +373,51 @@ export async function changeDealStage(formData: FormData) {
   revalidatePath("/deals");
   redirect(`/deals/${id}`);
 }
+
+// ボードのドラッグ&ドロップ用。カードを任意のステージ列へ落として移動する。
+// 手動移動なのでタスク完了ゲートは課さない（詳細ページのプルダウンと同じ扱い）。
+// 前方移動と時期見送りでは雛形を展開し、ボードに留まる（redirect しない）。
+export async function moveDealToStage(dealId: string, toStage: string) {
+  if (!dealId) {
+    throw new Error("案件IDが不正です。");
+  }
+  if (!Object.hasOwn(DEAL_STAGE, toStage)) {
+    throw new Error("ステージの値が不正です。");
+  }
+
+  const supabase = await createClient();
+  const { data: current, error: currentError } = await supabase
+    .from("deals")
+    .select("id, stage, company_id")
+    .eq("id", dealId)
+    .single();
+  if (currentError || !current) {
+    throw new Error("案件が見つかりませんでした。");
+  }
+  // 同じ列に落とした場合は何もしない（並び替えは非対応）
+  if (current.stage === toStage) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("deals")
+    .update({ stage: toStage as DealStage })
+    .eq("id", dealId);
+  if (error) {
+    throw new Error(`ステージ変更に失敗しました: ${error.message}`);
+  }
+
+  const fromIndex = DEAL_STAGE_ORDER.indexOf(current.stage as DealStage);
+  const toIndex = DEAL_STAGE_ORDER.indexOf(toStage as DealStage);
+  const isForward = toIndex >= 0 && toIndex > fromIndex;
+  if (isForward || toStage === "nurturing") {
+    await expandStageTemplates(
+      supabase,
+      dealId,
+      current.company_id as string | null,
+      toStage as DealStage,
+    );
+  }
+
+  revalidatePath("/deals");
+}

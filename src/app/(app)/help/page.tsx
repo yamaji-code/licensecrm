@@ -48,7 +48,7 @@ const tips = [
 
 export default function HelpPage() {
   return (
-    <div className="mx-auto max-w-3xl px-8 py-10">
+    <div className="px-8 py-10">
       <header className="mb-8">
         <h1 className="text-2xl font-semibold text-slate-900">使い方ガイド</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -72,10 +72,12 @@ export default function HelpPage() {
             <tbody className="divide-y divide-slate-100">
               {dailyScreens.map((s) => (
                 <tr key={s.name}>
-                  <td className="px-4 py-3 font-medium text-slate-900">
+                  <td className="whitespace-nowrap px-4 py-3 font-medium text-slate-900">
                     {s.name}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{s.when}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    {s.when}
+                  </td>
                   <td className="px-4 py-3 text-slate-600">{s.what}</td>
                 </tr>
               ))}

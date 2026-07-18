@@ -42,7 +42,7 @@ export default async function NewMeetingPage({
   const deals = (dealData ?? []) as DealOption[];
 
   return (
-    <div className="mx-auto max-w-2xl px-8 py-10">
+    <div className="px-8 py-10">
       <div className="mb-6">
         <Link href="/meetings" className="text-sm text-slate-500 hover:text-slate-900">
           ← MTG一覧

@@ -19,7 +19,7 @@ export default async function CompaniesPage() {
   const companies = (data ?? []) as Company[];
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
+    <div className="px-8 py-10">
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">取引先・顧客</h1>

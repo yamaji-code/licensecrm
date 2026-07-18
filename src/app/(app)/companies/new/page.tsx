@@ -8,7 +8,7 @@ const labelCls = "block text-sm font-medium text-slate-700";
 
 export default function NewCompanyPage() {
   return (
-    <div className="mx-auto max-w-2xl px-8 py-10">
+    <div className="px-8 py-10">
       <div className="mb-6">
         <Link href="/companies" className="text-sm text-slate-500 hover:text-slate-900">
           ← 取引先一覧

@@ -8,7 +8,7 @@ const labelCls = "block text-sm font-medium text-slate-700";
 
 export default function NewPartnerPage() {
   return (
-    <div className="mx-auto max-w-2xl px-8 py-10">
+    <div className="px-8 py-10">
       <div className="mb-6">
         <Link href="/partners" className="text-sm text-slate-500 hover:text-slate-900">
           ← パートナー一覧
