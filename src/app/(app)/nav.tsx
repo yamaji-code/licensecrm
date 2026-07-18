@@ -81,16 +81,37 @@ function HelpIcon({ className }: IconProps) {
   );
 }
 
-const NAV = [
-  { href: "/", label: "ダッシュボード", Icon: DashboardIcon },
-  { href: "/deals", label: "案件", Icon: DealsIcon },
-  { href: "/companies", label: "取引先・顧客", Icon: CompaniesIcon },
-  { href: "/partners", label: "パートナー", Icon: PartnersIcon },
-  { href: "/meetings", label: "MTG", Icon: MeetingsIcon },
-  { href: "/knowledge", label: "ナレッジ", Icon: KnowledgeIcon },
-  { href: "/tasks", label: "タスク", Icon: TasksIcon },
-  { href: "/help", label: "使い方", Icon: HelpIcon },
+/*
+ * 使う順にまとめる。
+ * 「毎日の仕事」= 朝開いて手を動かす画面 / 「台帳」= 参照する名簿 / 「記録」= 貯める資産。
+ * フラットに8個並べると、毎日使う3つが週1しか使わないものに埋もれるため。
+ */
+const NAV_GROUPS = [
+  {
+    label: "毎日の仕事",
+    items: [
+      { href: "/", label: "ダッシュボード", Icon: DashboardIcon },
+      { href: "/deals", label: "案件", Icon: DealsIcon },
+      { href: "/tasks", label: "タスク", Icon: TasksIcon },
+    ],
+  },
+  {
+    label: "台帳",
+    items: [
+      { href: "/companies", label: "取引先・顧客", Icon: CompaniesIcon },
+      { href: "/partners", label: "パートナー", Icon: PartnersIcon },
+    ],
+  },
+  {
+    label: "記録",
+    items: [
+      { href: "/meetings", label: "MTG", Icon: MeetingsIcon },
+      { href: "/knowledge", label: "ナレッジ", Icon: KnowledgeIcon },
+    ],
+  },
 ] as const;
+
+const HELP_ITEM = { href: "/help", label: "使い方", Icon: HelpIcon } as const;
 
 // トップは完全一致、それ以外は配下ページ（/deals/[id] 等）も現在地として扱う
 function isCurrent(pathname: string, href: string): boolean {
@@ -98,29 +119,50 @@ function isCurrent(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export default function Nav() {
+export default function Nav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
+  const renderItem = ({
+    href,
+    label,
+    Icon,
+  }: {
+    href: string;
+    label: string;
+    Icon: (props: IconProps) => React.ReactElement;
+  }) => {
+    const current = isCurrent(pathname, href);
+    return (
+      <Link
+        key={href}
+        href={href}
+        onClick={onNavigate}
+        aria-current={current ? "page" : undefined}
+        className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+          current
+            ? "bg-brand-600 font-medium text-white"
+            : "text-brand-100 hover:bg-brand-600/60 hover:text-white"
+        }`}
+      >
+        <Icon className="h-5 w-5 shrink-0" />
+        {label}
+      </Link>
+    );
+  };
+
   return (
-    <nav className="flex-1 space-y-0.5 px-3 py-4">
-      {NAV.map(({ href, label, Icon }) => {
-        const current = isCurrent(pathname, href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={current ? "page" : undefined}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
-              current
-                ? "bg-brand-600 font-medium text-white"
-                : "text-brand-100 hover:bg-brand-600/60 hover:text-white"
-            }`}
-          >
-            <Icon className="h-5 w-5 shrink-0" />
-            {label}
-          </Link>
-        );
-      })}
+    <nav className="flex-1 overflow-y-auto px-3 py-4">
+      {NAV_GROUPS.map((group) => (
+        <div key={group.label} className="mb-4 last:mb-0">
+          <p className="px-3 pb-1 text-[11px] font-medium tracking-wide text-brand-300">
+            {group.label}
+          </p>
+          <div className="space-y-0.5">{group.items.map(renderItem)}</div>
+        </div>
+      ))}
+      <div className="mt-2 border-t border-brand-600 pt-3">
+        {renderItem(HELP_ITEM)}
+      </div>
     </nav>
   );
 }
