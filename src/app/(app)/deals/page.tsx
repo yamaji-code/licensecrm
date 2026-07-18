@@ -6,18 +6,39 @@ import {
   DEAL_CHANNEL,
   DEAL_STAGE,
   DEAL_STAGE_ENTRY,
-  DEAL_STAGE_ORDER,
-  PB_STATUS,
   STAGE_GROUPS,
-  type Deal,
   type DealStage,
-  type CompanySize,
 } from "@/lib/types";
-import { advanceDealStage, setBoardDensity } from "./actions";
+import { setBoardDensity } from "./actions";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { KpiBar } from "@/components/kpi-bar";
 import { DraggableCard, DropColumn } from "@/components/board-dnd";
 import { summarizeQuarterKpi } from "@/lib/kpi";
+import { jstDateString } from "@/lib/date";
+import {
+  DealCard,
+  displayDealTitle,
+  type DealCounts,
+  type DealWithRelations,
+} from "./board-card";
+import {
+  Banner,
+  Button,
+  ButtonLink,
+  Card,
+  Chip,
+  EmptyState,
+  Field,
+  LoadErrorBanner,
+  Segmented,
+  Select,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  Table,
+} from "@/components/ui";
 
 // カンバンの列順は STAGE_GROUPS（types.ts）を単一ソースにする。
 const BOARD_COLUMNS: DealStage[] = STAGE_GROUPS.flatMap((g) => [...g.stages]);
@@ -25,29 +46,12 @@ const BOARD_COLUMNS: DealStage[] = STAGE_GROUPS.flatMap((g) => [...g.stages]);
 // 既定で折りたたむ進行外の列（件数が多く日常業務で常時見る対象ではない）
 const COLLAPSIBLE_COLUMNS: readonly DealStage[] = ["nurturing", "lost"];
 
-// 表示密度ごとのクラス（Tailwind は完全なクラス文字列でないと検出されないため、
-// テンプレート結合ではなく定数マップで切り替える）
-const DENSITY = {
-  comfortable: {
-    colW: "w-72",
-    colBody: "gap-2 p-3",
-    card: "rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm",
-    title: "block text-sm font-medium leading-snug text-slate-900 hover:underline",
-  },
-  compact: {
-    colW: "w-56",
-    colBody: "gap-1.5 p-2",
-    card: "rounded-xl border border-slate-200 bg-white px-2.5 py-2 shadow-sm",
-    title:
-      "block truncate text-[13px] font-medium leading-snug text-slate-900 hover:underline",
-  },
+// 列幅。1画面に入る列数を決めるので、増やすときは実機で列数を数えてから変えること。
+const COLUMN_WIDTH = {
+  comfortable: "w-64",
+  compact: "w-48",
 } as const;
-type Density = keyof typeof DENSITY;
-
-type DealWithRelations = Deal & {
-  companies: { name: string; company_size: CompanySize | null } | null;
-  genres: { name: string } | null;
-};
+type Density = keyof typeof COLUMN_WIDTH;
 
 export default async function DealsPage({
   searchParams,
@@ -107,9 +111,12 @@ export default async function DealsPage({
     { data: kpiFactsData, error: kpiFactsError },
   ] = await Promise.all([
     query,
+    // due_date は期限切れ判定に使う（赤で出す唯一の対象）
     supabase
       .from("tasks")
-      .select("deal_id, status, template_id, stage_task_templates ( is_required )")
+      .select(
+        "deal_id, status, due_date, template_id, stage_task_templates ( is_required )",
+      )
       .not("deal_id", "is", null),
     supabase
       .from("genres")
@@ -137,7 +144,7 @@ export default async function DealsPage({
   // 実在する案件のときだけ表示する（URL 直叩き・リロード時の誤表示防止）。
   const advancedDeal =
     typeof advanced === "string"
-      ? deals.find((d) => d.id === advanced) ?? null
+      ? (deals.find((d) => d.id === advanced) ?? null)
       : null;
   const advancedTo =
     typeof to === "string" && to in DEAL_STAGE ? (to as DealStage) : null;
@@ -147,121 +154,120 @@ export default async function DealsPage({
   // 案件ごとのタスク集計。
   // total===0 = 次アクション未設定。必須未完了0（かつ total>0）= 次ステージへ進める
   // （必須 = 手動作成タスク + 雛形の is_required=true。サーバー側 advanceDealStage と同一基準）。
-  const totalByDeal = new Map<string, number>();
-  const openByDeal = new Map<string, number>();
-  const openRequiredByDeal = new Map<string, number>();
+  const today = jstDateString();
+  const countsByDeal = new Map<string, DealCounts>();
+  const getCounts = (id: string) => {
+    let c = countsByDeal.get(id);
+    if (!c) {
+      c = { total: 0, open: 0, openRequired: 0, overdue: 0 };
+      countsByDeal.set(id, c);
+    }
+    return c;
+  };
   for (const t of taskData ?? []) {
-    const id = t.deal_id as string;
-    totalByDeal.set(id, (totalByDeal.get(id) ?? 0) + 1);
+    const c = getCounts(t.deal_id as string);
+    c.total += 1;
     if (t.status !== "done") {
-      openByDeal.set(id, (openByDeal.get(id) ?? 0) + 1);
+      c.open += 1;
       const tmpl = t.stage_task_templates as unknown as {
         is_required: boolean;
       } | null;
       if (t.template_id === null || tmpl?.is_required !== false) {
-        openRequiredByDeal.set(id, (openRequiredByDeal.get(id) ?? 0) + 1);
+        c.openRequired += 1;
       }
+      const due = t.due_date as string | null;
+      if (due && due < today) c.overdue += 1;
     }
   }
+  const EMPTY_COUNTS: DealCounts = {
+    total: 0,
+    open: 0,
+    openRequired: 0,
+    overdue: 0,
+  };
+
+  // 上部に出す「手が止まっている件数」。カード1枚ずつ探させないための集計。
+  const activeDeals = deals.filter((d) => !CLOSED_DEAL_STAGES.includes(d.stage));
+  const overdueCount = activeDeals.filter(
+    (d) => (countsByDeal.get(d.id) ?? EMPTY_COUNTS).overdue > 0,
+  ).length;
+  const noActionCount = activeDeals.filter(
+    (d) => (countsByDeal.get(d.id) ?? EMPTY_COUNTS).total === 0,
+  ).length;
 
   return (
     <div
       className={
         isTable
-          ? "px-8 py-10"
+          ? "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
           : // ボードは画面高さに固定し、ヘッダー/KPIバーは動かさず、
             // 案件の列だけを内側でスクロールさせる
-            "flex h-full flex-col px-6 pb-4 pt-6"
+            "flex h-full flex-col px-4 pb-4 pt-5 sm:px-6"
       }
     >
-      <header className="mb-4 flex shrink-0 items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">案件</h1>
-          <p className="mt-1 text-sm text-slate-500">{deals.length} 件</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* 表示密度切替（ボード表示のときのみ） */}
-          {!isTable && (
-            <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 text-sm">
-              <form action={setBoardDensity}>
-                <input type="hidden" name="density" value="comfortable" />
-                <button
-                  type="submit"
-                  className={`rounded-md px-3 py-1.5 font-medium transition ${
-                    density === "comfortable"
-                      ? "bg-brand-700 text-white"
-                      : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  標準
-                </button>
-              </form>
-              <form action={setBoardDensity}>
-                <input type="hidden" name="density" value="compact" />
-                <button
-                  type="submit"
-                  className={`rounded-md px-3 py-1.5 font-medium transition ${
-                    density === "compact"
-                      ? "bg-brand-700 text-white"
-                      : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  コンパクト
-                </button>
-              </form>
+      <header className="mb-4 shrink-0">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-3">
+              <h1 className="text-xl font-medium text-ink sm:text-2xl">案件</h1>
+              <span className="text-sm text-ink-soft">{deals.length} 件</span>
             </div>
-          )}
-          {/* 表示モード切替（ボード / 一覧） */}
-          <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 text-sm">
-            <Link
-              href="/deals"
-              className={`rounded-md px-3 py-1.5 font-medium transition ${
-                isTable
-                  ? "text-slate-600 hover:bg-slate-100"
-                  : "bg-brand-700 text-white"
-              }`}
-            >
-              ボード
-            </Link>
-            <Link
-              href="/deals?view=table"
-              className={`rounded-md px-3 py-1.5 font-medium transition ${
-                isTable
-                  ? "bg-brand-700 text-white"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              一覧
-            </Link>
           </div>
-          <Link
-            href="/deals/new"
-            className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
-          >
-            + 案件を追加
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {!isTable && <DensityToggle density={density} />}
+            <Segmented
+              label="表示形式"
+              active={isTable ? "table" : "board"}
+              options={[
+                { value: "board", label: "ボード", href: "/deals" },
+                { value: "table", label: "一覧", href: "/deals?view=table" },
+              ]}
+            />
+            <ButtonLink href="/deals/new" variant="primary">
+              案件を追加
+            </ButtonLink>
+          </div>
         </div>
+
+        {/* 手が止まっている案件の件数。カードを1枚ずつ探させない */}
+        {!isTable && (overdueCount > 0 || noActionCount > 0) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            {overdueCount > 0 && (
+              <Chip tone="danger">期限切れ {overdueCount} 件</Chip>
+            )}
+            {noActionCount > 0 && (
+              <Chip tone="warn">次アクション未設定 {noActionCount} 件</Chip>
+            )}
+            <span className="text-ink-faint">
+              進行中 {activeDeals.length} 件のうち
+            </span>
+          </div>
+        )}
       </header>
 
       {error && (
-        <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          読み込みエラー: {error.message}（マイグレーション未実行の可能性があります）
-        </p>
+        <div className="mb-4 shrink-0">
+          <LoadErrorBanner message={error.message} />
+        </div>
       )}
 
       {advancedDeal && advancedTo && (
-        <div className="mb-4 flex items-center justify-between rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          <p>
+        <div className="mb-4 shrink-0">
+          <Banner
+            tone="ok"
+            actions={
+              <Link
+                href="/deals"
+                className="text-xs font-medium underline underline-offset-2"
+              >
+                閉じる
+              </Link>
+            }
+          >
             「{advancedDeal.title}」を{DEAL_STAGE[advancedTo]}へ進めました。
             {advancedAdded > 0 &&
               `タスク ${advancedAdded} 件を自動追加しました。`}
-          </p>
-          <Link
-            href="/deals"
-            className="ml-4 shrink-0 text-xs font-medium text-emerald-700 hover:underline"
-          >
-            閉じる
-          </Link>
+          </Banner>
         </div>
       )}
 
@@ -281,22 +287,68 @@ export default async function DealsPage({
           stageFilter={stageFilter}
           genreFilter={genreFilter}
           genres={genres}
-          totalByDeal={totalByDeal}
+          countsByDeal={countsByDeal}
         />
       ) : (
-        // 残りの高さを占め、この中で横スクロール・列内の縦スクロールが完結する
-        <div className="min-h-0 flex-1">
-          <BoardView
-            deals={deals}
-            totalByDeal={totalByDeal}
-            openByDeal={openByDeal}
-            openRequiredByDeal={openRequiredByDeal}
-            density={density}
-            expandSet={expandSet}
-            contractedGenreIds={contractedGenreIds}
-          />
-        </div>
+        <>
+          {/* 狭い画面は列を横に並べられないので一覧へ誘導する */}
+          <div className="lg:hidden">
+            <Banner tone="info">
+              ボードは横に広い画面向けです。この画面幅では
+              <Link
+                href="/deals?view=table"
+                className="mx-1 font-medium underline underline-offset-2"
+              >
+                一覧表示
+              </Link>
+              が見やすいです。
+            </Banner>
+          </div>
+          {/* 残りの高さを占め、この中で横スクロール・列内の縦スクロールが完結する */}
+          <div className="hidden min-h-0 flex-1 lg:block">
+            <BoardView
+              deals={deals}
+              countsByDeal={countsByDeal}
+              density={density}
+              expandSet={expandSet}
+              contractedGenreIds={contractedGenreIds}
+            />
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+// 密度切替。cookie 保存のため Server Action（URLパラメータではない）
+function DensityToggle({ density }: { density: Density }) {
+  return (
+    <div
+      role="group"
+      aria-label="カードの表示密度"
+      className="inline-flex items-center rounded-lg border border-line bg-white p-0.5 text-sm"
+    >
+      {(
+        [
+          ["comfortable", "標準"],
+          ["compact", "コンパクト"],
+        ] as const
+      ).map(([value, label]) => (
+        <form action={setBoardDensity} key={value}>
+          <input type="hidden" name="density" value={value} />
+          <button
+            type="submit"
+            aria-pressed={density === value}
+            className={`rounded-md px-3 py-1.5 font-medium transition-colors ${
+              density === value
+                ? "bg-brand-700 text-white"
+                : "text-ink-soft hover:bg-brand-50 hover:text-brand-700"
+            }`}
+          >
+            {label}
+          </button>
+        </form>
+      ))}
     </div>
   );
 }
@@ -317,17 +369,13 @@ function expandHref(expandSet: Set<string>, col: DealStage, open: boolean) {
 
 function BoardView({
   deals,
-  totalByDeal,
-  openByDeal,
-  openRequiredByDeal,
+  countsByDeal,
   density,
   expandSet,
   contractedGenreIds,
 }: {
   deals: DealWithRelations[];
-  totalByDeal: Map<string, number>;
-  openByDeal: Map<string, number>;
-  openRequiredByDeal: Map<string, number>;
+  countsByDeal: Map<string, DealCounts>;
   density: Density;
   expandSet: Set<string>;
   contractedGenreIds: Set<string>;
@@ -338,20 +386,21 @@ function BoardView({
     // 既知列にあるものだけ振り分ける（列外の値は check 制約上存在しない）
     byStage.get(d.stage)?.push(d);
   }
-  const cls = DENSITY[density];
+  const compact = density === "compact";
+  const colW = COLUMN_WIDTH[density];
 
   return (
-    <div className="flex h-full items-stretch gap-5 overflow-x-auto pb-2">
+    <div className="flex h-full items-stretch gap-4 overflow-x-auto pb-2">
       {STAGE_GROUPS.map((group) => (
         <div key={group.key} className="flex h-full shrink-0 flex-col">
           {/* 列グループ帯（リード / 営業 / 契約・ブランド化 / 進行外） */}
           <div className="mb-1.5 flex shrink-0 items-center gap-2 px-1">
-            <span className="text-[11px] font-medium tracking-wide text-slate-400">
+            <span className="text-[11px] font-medium tracking-wide text-ink-faint">
               {group.label}
             </span>
-            <span className="h-px min-w-6 flex-1 bg-slate-200" />
+            <span className="h-px min-w-6 flex-1 bg-line" />
           </div>
-          <div className="flex min-h-0 flex-1 items-stretch gap-3">
+          <div className="flex min-h-0 flex-1 items-stretch gap-2.5">
             {group.stages.map((col) => {
               const items = byStage.get(col) ?? [];
               const collapsible = COLLAPSIBLE_COLUMNS.includes(col);
@@ -360,17 +409,21 @@ function BoardView({
               if (collapsed) {
                 // 折りたたみ帯もドロップ先にする（カードを落として時期見送り/失注へ移せる）
                 return (
-                  <DropColumn key={col} stage={col} className="flex w-12 shrink-0">
+                  <DropColumn
+                    key={col}
+                    stage={col}
+                    className="flex w-11 shrink-0"
+                  >
                     <Link
                       id={`col-${col}`}
                       href={expandHref(expandSet, col, true)}
                       title={`${DEAL_STAGE[col]}（${items.length}件）を開く・ここに落として移動`}
-                      className="flex w-full flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 py-3 transition hover:bg-slate-100"
+                      className="flex w-full flex-col items-center gap-2 rounded-card border border-line bg-white/60 py-3 transition-colors hover:bg-brand-50"
                     >
-                      <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[11px] font-medium text-slate-600">
+                      <span className="rounded-full bg-line px-1.5 py-0.5 text-[11px] font-medium text-ink-soft">
                         {items.length}
                       </span>
-                      <span className="text-xs font-medium text-slate-500 [writing-mode:vertical-rl]">
+                      <span className="text-xs font-medium text-ink-soft [writing-mode:vertical-rl]">
                         {DEAL_STAGE[col]}
                       </span>
                     </Link>
@@ -382,24 +435,24 @@ function BoardView({
                 <section
                   key={col}
                   id={`col-${col}`}
-                  className={`flex ${cls.colW} shrink-0 flex-col rounded-2xl border border-slate-200 bg-slate-50`}
+                  className={`flex ${colW} shrink-0 flex-col rounded-card border border-line bg-white/60`}
                 >
-                  <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-1 border-b border-line px-2.5 py-2">
                     <span
                       title={DEAL_STAGE_ENTRY[col]}
-                      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STAGE_BADGE_STYLE[col]}`}
+                      className={`truncate rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_BADGE_STYLE[col]}`}
                     >
                       {DEAL_STAGE[col]}
                     </span>
-                    <span className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-slate-400">
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="text-xs font-medium text-ink-faint">
                         {items.length}
                       </span>
                       {collapsible && (
                         <Link
                           href={expandHref(expandSet, col, false)}
-                          title="たたむ"
-                          className="text-xs text-slate-400 transition hover:text-slate-600"
+                          aria-label={`${DEAL_STAGE[col]}の列をたたむ`}
+                          className="text-xs text-ink-faint transition-colors hover:text-ink"
                         >
                           ×
                         </Link>
@@ -408,21 +461,26 @@ function BoardView({
                   </div>
                   <DropColumn
                     stage={col}
-                    className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${cls.colBody}`}
+                    className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2"
                   >
                     {items.length === 0 ? (
-                      <p className="px-1 py-6 text-center text-xs text-slate-300">
-                        なし
+                      <p className="px-1 py-6 text-center text-xs text-ink-faint">
+                        この列に案件はありません
                       </p>
                     ) : (
                       items.map((d) => (
                         <DraggableCard key={d.id} dealId={d.id}>
                           <DealCard
                             deal={d}
-                            total={totalByDeal.get(d.id) ?? 0}
-                            open={openByDeal.get(d.id) ?? 0}
-                            openRequired={openRequiredByDeal.get(d.id) ?? 0}
-                            density={density}
+                            counts={
+                              countsByDeal.get(d.id) ?? {
+                                total: 0,
+                                open: 0,
+                                openRequired: 0,
+                                overdue: 0,
+                              }
+                            }
+                            compact={compact}
                             contractedGenreIds={contractedGenreIds}
                           />
                         </DraggableCard>
@@ -439,125 +497,6 @@ function BoardView({
   );
 }
 
-function DealCard({
-  deal,
-  total,
-  open,
-  openRequired,
-  density,
-  contractedGenreIds,
-}: {
-  deal: DealWithRelations;
-  total: number;
-  open: number;
-  openRequired: number;
-  density: Density;
-  contractedGenreIds: Set<string>;
-}) {
-  const isClosed = CLOSED_DEAL_STAGES.includes(deal.stage);
-  const orderIndex = DEAL_STAGE_ORDER.indexOf(deal.stage);
-  const hasNextStage =
-    orderIndex >= 0 && orderIndex < DEAL_STAGE_ORDER.length - 1;
-  // 必須タスク（手動 + 雛形 is_required）が全完了なら進行可（任意タスクは残っていてよい）
-  const allRequiredDone = total > 0 && openRequired === 0;
-  const canAdvance = hasNextStage && allRequiredDone;
-  const nextLabel = hasNextStage
-    ? DEAL_STAGE[DEAL_STAGE_ORDER[orderIndex + 1]]
-    : null;
-  const cls = DENSITY[density];
-  const isCompact = density === "compact";
-  const isLarge = deal.companies?.company_size === "large";
-  const genreName = deal.genres?.name ?? null;
-  const genreContracted =
-    deal.genre_id !== null && contractedGenreIds.has(deal.genre_id);
-  const pbActive =
-    deal.pb_status === "searching" || deal.pb_status === "co_creating";
-
-  return (
-    <div className={cls.card}>
-      <Link href={`/deals/${deal.id}`} className={cls.title}>
-        {deal.title}
-      </Link>
-      <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-        <span className="truncate">{deal.companies?.name ?? "—"}</span>
-        {!isCompact && isLarge && (
-          <span className="shrink-0 rounded bg-slate-200 px-1 py-px text-[10px] font-medium text-slate-600">
-            大手
-          </span>
-        )}
-      </p>
-      {!isCompact && (
-        <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
-          <span className="truncate">{DEAL_CHANNEL[deal.channel]}</span>
-          {genreName &&
-            (genreContracted ? (
-              // 契約到達済みジャンル = 優先度低（1ジャンル1契約ルール）をグレー+「済」で示す
-              <span className="shrink-0 text-slate-300" title="このジャンルは契約済み（優先度低）">
-                済 {genreName}
-              </span>
-            ) : (
-              <span className="shrink-0">{genreName}</span>
-            ))}
-          {pbActive && deal.pb_status && (
-            <span className="shrink-0 rounded bg-indigo-100 px-1 py-px text-[10px] font-medium text-indigo-700">
-              {PB_STATUS[deal.pb_status]}
-            </span>
-          )}
-        </p>
-      )}
-
-      <div
-        className={
-          isCompact ? "mt-1.5" : "mt-2.5 border-t border-slate-100 pt-2.5"
-        }
-      >
-        {isClosed ? (
-          // 進行外（SV案内可能/時期見送り/失注）は進行文言を出さず中立表示にする
-          open > 0 ? (
-            <span
-              className={isCompact ? "text-[10px] text-slate-500" : "text-[11px] text-slate-500"}
-            >
-              残タスク {open} 件
-            </span>
-          ) : (
-            <span className="text-[11px] text-slate-300">—</span>
-          )
-        ) : canAdvance ? (
-          <form action={advanceDealStage}>
-            <input type="hidden" name="id" value={deal.id} />
-            <input type="hidden" name="from_stage" value={deal.stage} />
-            <button
-              type="submit"
-              title={`${nextLabel}へ進む`}
-              className={`flex w-full items-center justify-center gap-1 rounded-lg bg-brand-700 px-3 text-xs font-medium text-white transition hover:bg-brand-800 ${
-                isCompact ? "py-1" : "py-1.5"
-              }`}
-            >
-              {isCompact ? "→ 次へ" : `→ ${nextLabel}へ進む`}
-            </button>
-          </form>
-        ) : openRequired > 0 ? (
-          <span
-            className={isCompact ? "text-[10px] text-slate-500" : "text-[11px] text-slate-500"}
-          >
-            必須タスク残 {openRequired} 件
-          </span>
-        ) : (
-          // アクティブ案件でタスク0件 = 次アクション未設定
-          <Link
-            href={`/tasks/new?deal_id=${deal.id}`}
-            className={`inline-block rounded-full bg-red-50 px-2 py-0.5 font-medium text-red-700 hover:bg-red-100 ${
-              isCompact ? "text-[10px]" : "text-[11px]"
-            }`}
-          >
-            次アクション未設定
-          </Link>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ───────── 一覧（表）表示 ─────────
 
 function TableView({
@@ -565,123 +504,171 @@ function TableView({
   stageFilter,
   genreFilter,
   genres,
-  totalByDeal,
+  countsByDeal,
 }: {
   deals: DealWithRelations[];
   stageFilter: DealStage | null;
   genreFilter: string | null;
   genres: { id: string; name: string }[];
-  totalByDeal: Map<string, number>;
+  countsByDeal: Map<string, DealCounts>;
 }) {
+  const needsAction = (id: string, stage: DealStage) =>
+    !CLOSED_DEAL_STAGES.includes(stage) &&
+    (countsByDeal.get(id)?.total ?? 0) === 0;
+  const isOverdue = (id: string) => (countsByDeal.get(id)?.overdue ?? 0) > 0;
+
   return (
     <>
-      <form method="get" className="mb-4 flex items-center gap-3">
-        <input type="hidden" name="view" value="table" />
-        <label htmlFor="stage" className="text-sm font-medium text-slate-700">
-          ステージ
-        </label>
-        <select
-          id="stage"
-          name="stage"
-          defaultValue={stageFilter ?? ""}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+      <Card className="mb-4">
+        <form
+          method="get"
+          className="flex flex-wrap items-end gap-3 px-5 py-4"
         >
-          <option value="">すべて</option>
-          {Object.entries(DEAL_STAGE).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <label htmlFor="genre" className="text-sm font-medium text-slate-700">
-          ジャンル
-        </label>
-        <select
-          id="genre"
-          name="genre"
-          defaultValue={genreFilter ?? ""}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
-        >
-          <option value="">すべて</option>
-          {genres.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
-        >
-          絞り込む
-        </button>
-      </form>
+          <input type="hidden" name="view" value="table" />
+          <div className="w-full sm:w-48">
+            <Field htmlFor="stage" label="ステージ">
+              <Select id="stage" name="stage" defaultValue={stageFilter ?? ""}>
+                <option value="">すべて</option>
+                {Object.entries(DEAL_STAGE).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <div className="w-full sm:w-48">
+            <Field htmlFor="genre" label="ジャンル">
+              <Select id="genre" name="genre" defaultValue={genreFilter ?? ""}>
+                <option value="">すべて</option>
+                {genres.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Button type="submit" variant="secondary">
+            絞り込む
+          </Button>
+        </form>
+      </Card>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        {deals.length > 0 ? (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                <th className="px-5 py-3 font-medium">案件名</th>
-                <th className="px-5 py-3 font-medium">取引先</th>
-                <th className="px-5 py-3 font-medium">ステージ</th>
-                <th className="px-5 py-3 font-medium">ジャンル</th>
-                <th className="px-5 py-3 font-medium">チャネル</th>
-                <th className="px-5 py-3 font-medium">更新日</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {deals.map((d) => (
-                <tr key={d.id} className="transition hover:bg-slate-50">
-                  <td className="px-5 py-3">
-                    <Link
-                      href={`/deals/${d.id}`}
-                      className="font-medium text-slate-900 hover:underline"
-                    >
-                      {d.title}
-                    </Link>
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">
-                    {d.companies?.name ?? "—"}
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                          STAGE_BADGE_STYLE[d.stage]
-                        }`}
+      {deals.length === 0 ? (
+        <Card>
+          <EmptyState
+            title={
+              stageFilter || genreFilter
+                ? "条件に合う案件はありません"
+                : "まだ案件がありません"
+            }
+            description={
+              stageFilter || genreFilter
+                ? "絞り込みを外すと、ほかの案件が表示されます。"
+                : "営業先を案件として登録すると、ステージ・タスク・KPIが自動で積み上がります。"
+            }
+            action={
+              stageFilter || genreFilter ? (
+                <ButtonLink href="/deals?view=table" size="sm">
+                  絞り込みを外す
+                </ButtonLink>
+              ) : (
+                <ButtonLink href="/deals/new" variant="primary" size="sm">
+                  最初の案件を登録
+                </ButtonLink>
+              )
+            }
+          />
+        </Card>
+      ) : (
+        <>
+          <Card className="hidden sm:block">
+            <Table caption="案件の一覧">
+              <THead>
+                <TR className="hover:bg-transparent">
+                  <TH>案件名</TH>
+                  <TH>取引先</TH>
+                  <TH>ステージ</TH>
+                  <TH>ジャンル</TH>
+                  <TH>チャネル</TH>
+                  <TH>更新日</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {deals.map((d) => (
+                  <TR key={d.id}>
+                    <TD>
+                      <Link
+                        href={`/deals/${d.id}`}
+                        className="font-medium text-ink hover:text-brand-700 hover:underline"
                       >
-                        {DEAL_STAGE[d.stage]}
-                      </span>
-                      {!CLOSED_DEAL_STAGES.includes(d.stage) &&
-                        (totalByDeal.get(d.id) ?? 0) === 0 && (
-                          <span className="whitespace-nowrap rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                            次アクション未設定
-                          </span>
+                        {displayDealTitle(d.title, d.companies?.name)}
+                      </Link>
+                    </TD>
+                    <TD className="text-ink-soft">
+                      {d.companies?.name ?? "—"}
+                    </TD>
+                    <TD>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            STAGE_BADGE_STYLE[d.stage]
+                          }`}
+                        >
+                          {DEAL_STAGE[d.stage]}
+                        </span>
+                        {isOverdue(d.id) && <Chip tone="danger">期限切れ</Chip>}
+                        {needsAction(d.id, d.stage) && (
+                          <Chip tone="warn">次アクション未設定</Chip>
                         )}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">
-                    {d.genres?.name ?? "—"}
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">
-                    {DEAL_CHANNEL[d.channel]}
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">
-                    {d.updated_at.slice(0, 10)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">
-            {stageFilter || genreFilter
-              ? "条件に合う案件はありません。"
-              : "まだ案件がありません。「案件を追加」から登録してください。"}
-          </p>
-        )}
-      </div>
+                      </div>
+                    </TD>
+                    <TD className="text-ink-soft">{d.genres?.name ?? "—"}</TD>
+                    <TD className="text-ink-soft">
+                      {DEAL_CHANNEL[d.channel]}
+                    </TD>
+                    <TD className="text-ink-soft">
+                      {d.updated_at.slice(0, 10)}
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </Card>
+
+          <ul className="space-y-2 sm:hidden">
+            {deals.map((d) => (
+              <li key={d.id}>
+                <Link
+                  href={`/deals/${d.id}`}
+                  className="block rounded-card border border-line bg-white px-4 py-3 shadow-card transition-colors hover:border-brand-200"
+                >
+                  <p className="font-medium text-ink">
+                    {displayDealTitle(d.title, d.companies?.name)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-ink-soft">
+                    {d.companies?.name ?? "取引先未設定"}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        STAGE_BADGE_STYLE[d.stage]
+                      }`}
+                    >
+                      {DEAL_STAGE[d.stage]}
+                    </span>
+                    {isOverdue(d.id) && <Chip tone="danger">期限切れ</Chip>}
+                    {needsAction(d.id, d.stage) && (
+                      <Chip tone="warn">次アクション未設定</Chip>
+                    )}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </>
   );
 }

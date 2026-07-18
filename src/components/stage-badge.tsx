@@ -23,7 +23,7 @@ export const STAGE_BADGE_STYLE: Record<DealStage, string> = {
   branding: "bg-emerald-50 text-emerald-700",
   sv_ready: "bg-emerald-100 text-emerald-800",
   // 進行外
-  nurturing: "bg-slate-100 text-slate-600",
+  nurturing: "bg-surface text-ink-soft",
   lost: "bg-rose-50 text-rose-700",
 };
 

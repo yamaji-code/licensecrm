@@ -15,6 +15,23 @@ import {
   type GenreStat,
   type StageDuration,
 } from "@/lib/types";
+import {
+  Banner,
+  ButtonLink,
+  Card,
+  CardHeader,
+  Chip,
+  EmptyState,
+  PageHeader,
+  PageShell,
+  SectionTitle,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  Table,
+} from "@/components/ui";
 
 // 中央値（データなしは null）
 function median(values: number[]): number | null {
@@ -167,278 +184,292 @@ export default async function Dashboard() {
   const genreStats = (genreStatData ?? []) as GenreStat[];
 
   return (
-    <div className="px-8 py-10">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold text-slate-900">ダッシュボード</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {quarterLabel} の営業 KPI と社内業務の概況
-        </p>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="ダッシュボード"
+        description={`${quarterLabel} の営業 KPI と社内業務の概況`}
+      />
 
       {kpiError && (
-        <p className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
-          KPI データの読み込みに失敗しました（マイグレーション 0002 未適用の可能性があります）。
-          下記の商談・契約・成約率は正しい値ではありません: {kpiError.message}
-        </p>
+        <div className="mb-4">
+          <Banner tone="warn" title="KPI データの読み込みに失敗しました">
+            マイグレーション 0002 未適用の可能性があります。下記の商談・契約・成約率は正しい値ではありません:{" "}
+            {kpiError.message}
+          </Banner>
+        </div>
       )}
 
-      {noNextActionCount > 0 && (
-        <Link
-          href="/deals"
-          className="mb-6 block rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 transition hover:border-red-300"
-        >
-          <span className="font-medium">
-            次アクション未設定の案件が {noNextActionCount} 件あります。
-          </span>
-          <span className="ml-1 underline underline-offset-2">
-            案件一覧で確認 →
-          </span>
-        </Link>
-      )}
+      {/* 手を動かす情報を先に置く。数字を見るのはそのあと */}
+      <section className="mb-6 space-y-4">
+        {noNextActionCount > 0 && (
+          <Banner
+            tone="warn"
+            title={`次アクションが決まっていない案件が ${noNextActionCount} 件あります`}
+            actions={
+              <ButtonLink href="/deals" size="sm">
+                案件ボードで確認
+              </ButtonLink>
+            }
+          >
+            案件は動いているのに、次に何をするかが登録されていない状態です。
+          </Banner>
+        )}
 
-      {/* KPI プログレス */}
-      <section className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">{quarterLabel} 商談実施</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {meetingsCount}
-            <span className="ml-1 text-base font-normal text-slate-400">
-              / {targets.meetings} 件
-            </span>
-          </p>
-          <ProgressBar
-            value={meetingsCount}
-            target={targets.meetings}
-            className="mt-3 h-2 w-full"
+        <Card>
+          <CardHeader
+            title="期限が近いタスク"
+            actions={
+              <Link
+                href="/tasks"
+                className="text-xs text-ink-soft transition-colors hover:text-ink"
+              >
+                すべて見る →
+              </Link>
+            }
           />
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">{quarterLabel} 契約</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {contractsCount}
-            <span className="ml-1 text-base font-normal text-slate-400">
-              / {targets.contracts} 件
-            </span>
-          </p>
-          <ProgressBar
-            value={contractsCount}
-            target={targets.contracts}
-            className="mt-3 h-2 w-full"
-          />
-        </div>
-      </section>
-
-      {/* 成約率（速報・コホート併記） */}
-      <section className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">速報成約率</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {flashRateLabel}
-          </p>
-          <p className="mt-2 text-xs text-slate-400">
-            当Q契約 ÷ 当Q商談の暫定値。契約は前Q以前に商談実施した案件を含むことがあります。
-          </p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">コホート成約率</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {cohortRateLabel}
-          </p>
-          <p className="mt-2 text-xs text-slate-400">
-            当Q商談到達 {meetingsCount} 件中、契約到達 {cohortContractCount} 件（追跡中・Q序盤は低く出ます）。
-          </p>
-        </div>
-      </section>
-
-      {/* チャネル別 */}
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-medium text-slate-700">
-          チャネル別（全期間・商談到達ベース）
-        </h2>
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                <th className="px-5 py-3 font-medium">チャネル</th>
-                <th className="px-5 py-3 font-medium">商談到達</th>
-                <th className="px-5 py-3 font-medium">契約到達</th>
-                <th className="px-5 py-3 font-medium">成約率</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {channelStats.map((s) => (
-                <tr key={s.channel}>
-                  <td className="px-5 py-3 text-slate-800">
-                    {DEAL_CHANNEL[s.channel]}
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">{s.meetings} 件</td>
-                  <td className="px-5 py-3 text-slate-600">{s.contracts} 件</td>
-                  <td className="px-5 py-3 text-slate-600">{s.rateLabel}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* 規模別リードタイム */}
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-medium text-slate-700">
-          ステージ別リードタイム（滞在日数の中央値・( )内は件数）
-        </h2>
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          {hasLeadTimeData ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                  <th className="px-5 py-3 font-medium">ステージ</th>
-                  {SIZE_COLUMNS.map((c) => (
-                    <th key={c.key} className="px-5 py-3 font-medium">
-                      {c.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {leadTimeRows.map((row) => (
-                  <tr key={row.stage}>
-                    <td className="px-5 py-3 text-slate-800">
-                      {DEAL_STAGE[row.stage]}
-                    </td>
-                    {row.cells.map((cell) => (
-                      <td key={cell.key} className="px-5 py-3 text-slate-600">
-                        {cell.label}
-                        {cell.low && (
-                          <span className="ml-1 text-xs text-slate-400">
-                            ※少数
-                          </span>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="px-5 py-6 text-center text-sm text-slate-400">
-              まだ計測データがありません（旧CRM移行分は遷移日時が近似のため計測対象外。
-              新しい案件がステージを進むと自動で貯まります）
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* ジャンル獲得マップ */}
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-medium text-slate-700">
-          ジャンル獲得マップ（1ジャンル1契約・空白ジャンルが次の狙い目）
-        </h2>
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          {genreStats.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                  <th className="px-5 py-3 font-medium">ジャンル</th>
-                  <th className="px-5 py-3 font-medium">契約済</th>
-                  <th className="px-5 py-3 font-medium">進行中案件</th>
-                  <th className="px-5 py-3 font-medium">優先度</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {genreStats
-                  .filter((g) => g.is_active)
-                  .map((g) => {
-                    const suppressed =
-                      g.priority_override === "suppress" ||
-                      (g.priority_override !== "boost" && g.contracted_count > 0);
-                    return (
-                      <tr key={g.genre_id}>
-                        <td className="px-5 py-3 text-slate-800">{g.name}</td>
-                        <td className="px-5 py-3 text-slate-600">
-                          {g.contracted_count > 0 ? `${g.contracted_count} 件` : "—"}
-                        </td>
-                        <td className="px-5 py-3 text-slate-600">
-                          {g.open_count} 件
-                        </td>
-                        <td className="px-5 py-3">
-                          {suppressed ? (
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-                              低（獲得済）
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">
-                              狙い目
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          ) : (
-            <p className="px-5 py-6 text-center text-sm text-slate-400">
-              ジャンルが未登録です。ジャンルマスタ（業態13種など）を登録すると、
-              獲得状況と狙い目がここに表示されます
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* 取引先・未完了タスク（既存） */}
-      <section className="mt-8 grid gap-4 sm:grid-cols-2">
-        <Link
-          href="/companies"
-          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-400"
-        >
-          <p className="text-sm text-slate-500">取引先・顧客</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {companyCount ?? 0}
-            <span className="ml-1 text-base font-normal text-slate-400">社</span>
-          </p>
-        </Link>
-        <Link
-          href="/tasks"
-          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-400"
-        >
-          <p className="text-sm text-slate-500">未完了タスク</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-900">
-            {taskOpenCount ?? 0}
-            <span className="ml-1 text-base font-normal text-slate-400">件</span>
-          </p>
-        </Link>
-      </section>
-
-      <section className="mt-8">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-slate-700">期限が近いタスク</h2>
-          <Link href="/tasks" className="text-xs text-slate-500 hover:text-slate-900">
-            すべて見る →
-          </Link>
-        </div>
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
           {recentTasks && recentTasks.length > 0 ? (
-            <ul className="divide-y divide-slate-100">
+            <ul className="divide-y divide-line">
               {recentTasks.map((t) => (
                 <li
                   key={t.id}
-                  className="flex items-center justify-between px-5 py-3 text-sm"
+                  className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"
                 >
-                  <span className="text-slate-800">{t.title}</span>
-                  <span className="flex items-center gap-3 text-xs text-slate-400">
-                    <span>{TASK_STATUS[t.status as keyof typeof TASK_STATUS]}</span>
+                  <span className="text-ink">{t.title}</span>
+                  <span className="flex items-center gap-3 text-xs text-ink-faint">
+                    <span>
+                      {TASK_STATUS[t.status as keyof typeof TASK_STATUS]}
+                    </span>
                     <span>{t.due_date ?? "期限なし"}</span>
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="px-5 py-6 text-center text-sm text-slate-400">
-              未完了のタスクはありません
-            </p>
+            <EmptyState
+              title="未完了のタスクはありません"
+              description="案件から次のアクションを登録すると、期限が近いものがここに並びます。"
+              action={
+                <ButtonLink href="/deals" size="sm">
+                  案件ボードを開く
+                </ButtonLink>
+              }
+            />
           )}
+        </Card>
+      </section>
+
+      {/* KPI: 数字は1つのまとまりに圧縮し、縦に積み上げない */}
+      <section className="mb-8">
+        <SectionTitle>{quarterLabel} の実績</SectionTitle>
+        <Card>
+          <div className="grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
+            <div className="px-5 py-4">
+              <p className="text-xs text-ink-soft">商談実施</p>
+              <p className="mt-1 text-2xl font-medium text-ink">
+                {meetingsCount}
+                <span className="ml-1 text-sm font-normal text-ink-faint">
+                  / {targets.meetings} 件
+                </span>
+              </p>
+              <ProgressBar
+                value={meetingsCount}
+                target={targets.meetings}
+                className="mt-2 h-1.5 w-full"
+              />
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-xs text-ink-soft">契約</p>
+              <p className="mt-1 text-2xl font-medium text-ink">
+                {contractsCount}
+                <span className="ml-1 text-sm font-normal text-ink-faint">
+                  / {targets.contracts} 件
+                </span>
+              </p>
+              <ProgressBar
+                value={contractsCount}
+                target={targets.contracts}
+                className="mt-2 h-1.5 w-full"
+              />
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-xs text-ink-soft">速報成約率</p>
+              <p className="mt-1 text-2xl font-medium text-ink">
+                {flashRateLabel}
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-ink-faint">
+                当Q契約 ÷ 当Q商談の暫定値。契約は前Q以前に商談実施した案件を含むことがあります。
+              </p>
+            </div>
+            <div className="px-5 py-4">
+              <p className="text-xs text-ink-soft">コホート成約率</p>
+              <p className="mt-1 text-2xl font-medium text-ink">
+                {cohortRateLabel}
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-ink-faint">
+                当Q商談到達 {meetingsCount} 件中、契約到達 {cohortContractCount}{" "}
+                件（追跡中・Q序盤は低く出ます）。
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Link
+            href="/companies"
+            className="rounded-card border border-line bg-white px-5 py-4 shadow-card transition-colors hover:border-brand-200"
+          >
+            <p className="text-xs text-ink-soft">取引先・顧客</p>
+            <p className="mt-1 text-2xl font-medium text-ink">
+              {companyCount ?? 0}
+              <span className="ml-1 text-sm font-normal text-ink-faint">社</span>
+            </p>
+          </Link>
+          <Link
+            href="/tasks"
+            className="rounded-card border border-line bg-white px-5 py-4 shadow-card transition-colors hover:border-brand-200"
+          >
+            <p className="text-xs text-ink-soft">未完了タスク</p>
+            <p className="mt-1 text-2xl font-medium text-ink">
+              {taskOpenCount ?? 0}
+              <span className="ml-1 text-sm font-normal text-ink-faint">件</span>
+            </p>
+          </Link>
         </div>
       </section>
-    </div>
+
+      {/* チャネル別 */}
+      <section className="mt-8">
+        <SectionTitle>チャネル別（全期間・商談到達ベース）</SectionTitle>
+        <Card>
+          <Table caption="獲得チャネル別の商談到達・契約到達・成約率">
+            <THead>
+              <TR className="hover:bg-transparent">
+                <TH>チャネル</TH>
+                <TH numeric>商談到達</TH>
+                <TH numeric>契約到達</TH>
+                <TH numeric>成約率</TH>
+              </TR>
+            </THead>
+            <TBody>
+              {channelStats.map((s) => (
+                <TR key={s.channel}>
+                  <TD>{DEAL_CHANNEL[s.channel]}</TD>
+                  <TD numeric className="text-ink-soft">
+                    {s.meetings} 件
+                  </TD>
+                  <TD numeric className="text-ink-soft">
+                    {s.contracts} 件
+                  </TD>
+                  <TD numeric className="text-ink-soft">
+                    {s.rateLabel}
+                  </TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+        </Card>
+      </section>
+
+      {/* 規模別リードタイム */}
+      <section className="mt-8">
+        <SectionTitle>
+          ステージ別リードタイム（滞在日数の中央値・( )内は件数）
+        </SectionTitle>
+        <Card>
+          {hasLeadTimeData ? (
+            <Table caption="ステージ別・企業規模別の滞在日数の中央値">
+              <THead>
+                <TR className="hover:bg-transparent">
+                  <TH>ステージ</TH>
+                  {SIZE_COLUMNS.map((c) => (
+                    <TH key={c.key} numeric>
+                      {c.label}
+                    </TH>
+                  ))}
+                </TR>
+              </THead>
+              <TBody>
+                {leadTimeRows.map((row) => (
+                  <TR key={row.stage}>
+                    <TD>{DEAL_STAGE[row.stage]}</TD>
+                    {row.cells.map((cell) => (
+                      <TD key={cell.key} numeric className="text-ink-soft">
+                        {cell.label}
+                        {cell.low && (
+                          <span className="ml-1 text-xs text-ink-faint">
+                            ※少数
+                          </span>
+                        )}
+                      </TD>
+                    ))}
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          ) : (
+            <EmptyState
+              title="まだ計測データがありません"
+              description="旧CRM移行分は遷移日時が近似のため計測対象外です。新しい案件がステージを進むと自動で貯まります。"
+            />
+          )}
+        </Card>
+      </section>
+
+      {/* ジャンル獲得マップ */}
+      <section className="mt-8">
+        <SectionTitle>
+          ジャンル獲得マップ（1ジャンル1契約・空白ジャンルが次の狙い目）
+        </SectionTitle>
+        <Card>
+          {genreStats.length > 0 ? (
+            <Table caption="ジャンル別の契約済み件数・進行中案件・優先度">
+              <THead>
+                <TR className="hover:bg-transparent">
+                  <TH>ジャンル</TH>
+                  <TH numeric>契約済</TH>
+                  <TH numeric>進行中案件</TH>
+                  <TH>優先度</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {genreStats
+                  .filter((g) => g.is_active)
+                  .map((g) => {
+                    const suppressed =
+                      g.priority_override === "suppress" ||
+                      (g.priority_override !== "boost" &&
+                        g.contracted_count > 0);
+                    return (
+                      <TR key={g.genre_id}>
+                        <TD>{g.name}</TD>
+                        <TD numeric className="text-ink-soft">
+                          {g.contracted_count > 0
+                            ? `${g.contracted_count} 件`
+                            : "—"}
+                        </TD>
+                        <TD numeric className="text-ink-soft">
+                          {g.open_count} 件
+                        </TD>
+                        <TD>
+                          {suppressed ? (
+                            <Chip tone="muted">低（獲得済）</Chip>
+                          ) : (
+                            <Chip tone="brand">狙い目</Chip>
+                          )}
+                        </TD>
+                      </TR>
+                    );
+                  })}
+              </TBody>
+            </Table>
+          ) : (
+            <EmptyState
+              title="ジャンルが未登録です"
+              description="ジャンルマスタ（業態13種など）を登録すると、獲得状況と狙い目がここに表示されます。"
+            />
+          )}
+        </Card>
+      </section>
+    </PageShell>
   );
 }

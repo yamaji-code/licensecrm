@@ -13,7 +13,11 @@ export function ProgressBar({
     target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
   return (
     <div
-      className={`overflow-hidden rounded-full bg-slate-100 ${className}`}
+      role="progressbar"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={target}
+      className={`overflow-hidden rounded-full bg-line ${className}`}
     >
       <div
         className="h-full rounded-full bg-brand-700 transition-all"

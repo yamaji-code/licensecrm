@@ -5,6 +5,21 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { updateCompanySize } from "../actions";
 import {
+  Banner,
+  ButtonLink,
+  Card,
+  CardBody,
+  CardHeader,
+  DescItem,
+  DescList,
+  EmptyState,
+  Field,
+  PageHeader,
+  PageShell,
+  Select,
+  SubmitButton,
+} from "@/components/ui";
+import {
   COMPANY_SIZE,
   COMPANY_STATUS,
   CONTACT_DECISION_ROLE,
@@ -53,212 +68,247 @@ export default async function CompanyDetailPage({
   const deals = (dealData ?? []) as Deal[];
 
   return (
-    <div className="px-8 py-10">
-      <div className="mb-6">
-        <Link href="/companies" className="text-sm text-slate-500 hover:text-slate-900">
-          ← 取引先一覧
-        </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold text-slate-900">{company.name}</h1>
+    <PageShell>
+      <PageHeader
+        title={company.name}
+        meta={
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${COMPANY_STATUS_STYLE[company.status]}`}
+            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+              COMPANY_STATUS_STYLE[company.status]
+            }`}
           >
             {COMPANY_STATUS[company.status]}
           </span>
-        </div>
-        {company.name_kana && (
-          <p className="mt-1 text-sm text-slate-400">{company.name_kana}</p>
-        )}
-      </div>
+        }
+        description={company.name_kana || undefined}
+        back={
+          <Link
+            href="/companies"
+            className="text-ink-soft hover:text-brand-700 hover:underline"
+          >
+            ← 取引先一覧
+          </Link>
+        }
+      />
 
-      {/* 会社基本情報 */}
-      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 text-sm font-medium text-slate-500">基本情報</h2>
-        <dl className="grid gap-4 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-slate-400">
-              企業規模{" "}
-              <span className="text-slate-300">
-                （目安: 10店舗以上・従業員100名以上・上場系は大手）
-              </span>
-            </dt>
-            <dd className="mt-0.5">
-              <form
-                action={updateCompanySize}
-                className="flex items-center gap-2"
-              >
+      {/* 広い画面は2カラム。左＝案件・担当者（動く実体）／右＝会社の属性情報。
+          狭い画面では従来どおり「基本情報 → 担当者 → 案件」の縦積みになる */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* 会社基本情報（広い画面では右レール） */}
+        <div className="lg:order-2 lg:col-span-1">
+          <Card>
+            <CardHeader title="基本情報" />
+            <CardBody className="space-y-5">
+              <form action={updateCompanySize}>
                 <input type="hidden" name="id" value={company.id} />
-                <select
-                  name="company_size"
-                  defaultValue={company.company_size ?? ""}
-                  className="rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-900 outline-none focus:border-brand-500"
+                <Field
+                  htmlFor="company_size"
+                  label="企業規模"
+                  hint="目安: 10店舗以上・従業員100名以上・上場系は大手"
                 >
-                  <option value="">未設定</option>
-                  {Object.entries(COMPANY_SIZE).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
-                >
-                  保存
-                </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      id="company_size"
+                      name="company_size"
+                      defaultValue={company.company_size ?? ""}
+                      className="min-w-40 flex-1"
+                    >
+                      <option value="">未設定</option>
+                      {Object.entries(COMPANY_SIZE).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </Select>
+                    <SubmitButton
+                      variant="secondary"
+                      size="sm"
+                      pendingLabel="保存中…"
+                    >
+                      保存
+                    </SubmitButton>
+                  </div>
+                </Field>
               </form>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-slate-400">業種</dt>
-            <dd className="mt-0.5 text-slate-900">{company.industry ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-400">電話番号</dt>
-            <dd className="mt-0.5 text-slate-900">{company.phone ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-400">Web サイト</dt>
-            <dd className="mt-0.5 text-slate-900">{company.website ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-400">住所</dt>
-            <dd className="mt-0.5 text-slate-900">{company.address ?? "—"}</dd>
-          </div>
-        </dl>
-        {company.note && (
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <dt className="text-sm text-slate-400">メモ</dt>
-            <dd className="mt-1 whitespace-pre-wrap text-sm text-slate-700">
-              {company.note}
-            </dd>
-          </div>
-        )}
-      </section>
 
-      {/* 担当者一覧（人物情報カード） */}
-      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-slate-500">担当者 {contacts.length} 名</h2>
-          <Link
-            href={`/companies/${company.id}/contacts/new`}
-            className="rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-brand-800"
-          >
-            + 担当者を追加
-          </Link>
-        </div>
-
-        {contacts.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {contacts.map((c) => (
-              <div key={c.id} className="rounded-xl border border-slate-200 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="font-semibold text-slate-900">{c.name}</p>
-                      {c.decision_role && (
-                        <span
-                          className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${DECISION_ROLE_STYLE[c.decision_role]}`}
-                        >
-                          {CONTACT_DECISION_ROLE_MARK[c.decision_role]}{" "}
-                          {CONTACT_DECISION_ROLE[c.decision_role]}
-                        </span>
-                      )}
-                    </div>
-                    {c.title && <p className="text-xs text-slate-400">{c.title}</p>}
-                  </div>
-                  <Link
-                    href={`/companies/${company.id}/contacts/${c.id}/edit`}
-                    className="whitespace-nowrap text-xs text-slate-500 hover:text-slate-900 hover:underline"
-                  >
-                    編集
-                  </Link>
-                </div>
-
-                {/* 人柄・連絡NG時間帯は最上位・太字で表示（商談前の必読情報） */}
-                {(c.personality || c.contact_ng_hours) && (
-                  <div className="mt-3 space-y-1 rounded-lg bg-slate-50 px-3 py-2 text-sm">
-                    {c.personality && (
-                      <p className="font-semibold text-slate-900">人柄: {c.personality}</p>
-                    )}
-                    {c.contact_ng_hours && (
-                      <p className="font-semibold text-red-600">
-                        連絡NG: {c.contact_ng_hours}
-                      </p>
-                    )}
-                  </div>
+              <DescList>
+                <DescItem label="業種">{company.industry ?? "—"}</DescItem>
+                <DescItem label="電話番号">{company.phone ?? "—"}</DescItem>
+                <DescItem label="Web サイト">{company.website ?? "—"}</DescItem>
+                <DescItem label="住所">{company.address ?? "—"}</DescItem>
+                {company.note && (
+                  <DescItem label="メモ">
+                    <span className="whitespace-pre-wrap">{company.note}</span>
+                  </DescItem>
                 )}
-
-                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                  <div>
-                    <dt className="text-slate-400">想定リードタイム</dt>
-                    <dd className="text-slate-700">
-                      {c.lead_time ? CONTACT_LEAD_TIME[c.lead_time] : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-400">メール</dt>
-                    <dd className="text-slate-700">{c.email ?? "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-400">電話</dt>
-                    <dd className="text-slate-700">{c.phone ?? "—"}</dd>
-                  </div>
-                </dl>
-
-                {c.note && <p className="mt-3 text-xs text-slate-500">{c.note}</p>}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="py-6 text-center text-sm text-slate-400">
-            まだ担当者が登録されていません。「担当者を追加」から登録してください。
-          </p>
-        )}
-      </section>
-
-      {/* この会社に紐づく案件一覧 */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-slate-500">案件 {deals.length} 件</h2>
-          <Link
-            href={`/deals/new?company_id=${company.id}`}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
-          >
-            + 案件を追加
-          </Link>
+              </DescList>
+            </CardBody>
+          </Card>
         </div>
 
-        {deals.length > 0 ? (
-          <ul className="divide-y divide-slate-100">
-            {deals.map((d) => (
-              <li
-                key={d.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"
-              >
-                <Link
-                  href={`/deals/${d.id}`}
-                  className="font-medium text-slate-900 hover:underline"
+        {/* 担当者・案件（広い画面では左のメイン列） */}
+        <div className="space-y-6 lg:order-1 lg:col-span-2">
+          {/* 担当者一覧（人物情報カード） */}
+          <Card>
+            <CardHeader
+              title={`担当者 ${contacts.length} 名`}
+              actions={
+                <ButtonLink
+                  href={`/companies/${company.id}/contacts/new`}
+                  variant="primary"
+                  size="sm"
                 >
-                  {d.title}
-                </Link>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_BADGE_STYLE[d.stage]}`}
-                  >
-                    {DEAL_STAGE[d.stage]}
-                  </span>
-                  <span className="text-xs text-slate-400">{DEAL_CHANNEL[d.channel]}</span>
+                  担当者を追加
+                </ButtonLink>
+              }
+            />
+            {contacts.length > 0 ? (
+              <CardBody>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {contacts.map((c) => (
+                    <Card key={c.id}>
+                      <CardBody>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <p className="font-medium text-ink">{c.name}</p>
+                              {c.decision_role && (
+                                <span
+                                  className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                                    DECISION_ROLE_STYLE[c.decision_role]
+                                  }`}
+                                >
+                                  {CONTACT_DECISION_ROLE_MARK[c.decision_role]}{" "}
+                                  {CONTACT_DECISION_ROLE[c.decision_role]}
+                                </span>
+                              )}
+                            </div>
+                            {c.title && (
+                              <p className="text-xs text-ink-faint">{c.title}</p>
+                            )}
+                          </div>
+                          <Link
+                            href={`/companies/${company.id}/contacts/${c.id}/edit`}
+                            className="whitespace-nowrap text-xs text-ink-soft hover:text-brand-700 hover:underline"
+                          >
+                            編集
+                          </Link>
+                        </div>
+
+                        {/* 人柄・連絡NG時間帯は商談前の必読情報。
+                            連絡NGは「気づいてほしいが作業は続けられる」ため warn（赤は使わない） */}
+                        {(c.personality || c.contact_ng_hours) && (
+                          <div className="mt-3 space-y-2">
+                            {c.personality && (
+                              <p className="text-sm font-medium text-ink">
+                                人柄: {c.personality}
+                              </p>
+                            )}
+                            {c.contact_ng_hours && (
+                              <Banner
+                                tone="warn"
+                                title={`連絡NG: ${c.contact_ng_hours}`}
+                              />
+                            )}
+                          </div>
+                        )}
+
+                        <div className="mt-3">
+                          <DescList>
+                            <DescItem label="想定リードタイム">
+                              {c.lead_time ? CONTACT_LEAD_TIME[c.lead_time] : "—"}
+                            </DescItem>
+                            <DescItem label="メール">{c.email ?? "—"}</DescItem>
+                            <DescItem label="電話">{c.phone ?? "—"}</DescItem>
+                          </DescList>
+                        </div>
+
+                        {c.note && (
+                          <p className="mt-3 text-xs text-ink-soft">{c.note}</p>
+                        )}
+                      </CardBody>
+                    </Card>
+                  ))}
                 </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="py-6 text-center text-sm text-slate-400">
-            まだ案件がありません。「案件を追加」から登録してください。
-          </p>
-        )}
-      </section>
-    </div>
+              </CardBody>
+            ) : (
+              <EmptyState
+                title="まだ担当者が登録されていません"
+                description="決裁権や連絡NG時間帯を登録しておくと、商談前に誰へどう当たるかが判断できます。"
+                action={
+                  <ButtonLink
+                    href={`/companies/${company.id}/contacts/new`}
+                    variant="primary"
+                    size="sm"
+                  >
+                    最初の担当者を登録
+                  </ButtonLink>
+                }
+              />
+            )}
+          </Card>
+
+          {/* この会社に紐づく案件一覧 */}
+          <Card>
+            <CardHeader
+              title={`案件 ${deals.length} 件`}
+              actions={
+                <ButtonLink
+                  href={`/deals/new?company_id=${company.id}`}
+                  size="sm"
+                >
+                  案件を追加
+                </ButtonLink>
+              }
+            />
+            {deals.length > 0 ? (
+              <CardBody>
+                <ul className="divide-y divide-line">
+                  {deals.map((d) => (
+                    <li
+                      key={d.id}
+                      className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm first:pt-0 last:pb-0"
+                    >
+                      <Link
+                        href={`/deals/${d.id}`}
+                        className="font-medium text-ink hover:text-brand-700 hover:underline"
+                      >
+                        {d.title}
+                      </Link>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                            STAGE_BADGE_STYLE[d.stage]
+                          }`}
+                        >
+                          {DEAL_STAGE[d.stage]}
+                        </span>
+                        <span className="text-xs text-ink-faint">
+                          {DEAL_CHANNEL[d.channel]}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </CardBody>
+            ) : (
+              <EmptyState
+                title="まだ案件がありません"
+                description="この会社との商談を案件として登録すると、ステージごとの進み具合を追えます。"
+                action={
+                  <ButtonLink
+                    href={`/deals/new?company_id=${company.id}`}
+                    variant="primary"
+                    size="sm"
+                  >
+                    最初の案件を登録
+                  </ButtonLink>
+                }
+              />
+            )}
+          </Card>
+        </div>
+      </div>
+    </PageShell>
   );
 }

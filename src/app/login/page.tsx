@@ -1,26 +1,38 @@
 "use client";
 
+// ログインはマジックリンク方式。Server Action ではなくクライアント側で
+// supabase.auth.signInWithOtp を叩くため、送信中の状態は useState で持つ
+// （useFormStatus は親フォームの action を前提にするので SubmitButton は使えない）。
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { use, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Banner, Button, Card, CardBody, Field, Input } from "@/components/ui";
 
-export default function LoginPage() {
+// ?error= の文言。/auth/callback から弾かれたときにここへ戻される
+function errorMessage(error: string | undefined): string {
+  if (error === "forbidden") {
+    return "このメールアドレスはログインを許可されていません。";
+  }
+  return "ログインに失敗しました。もう一度お試しください。";
+}
+
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[] }>;
+}) {
+  // URLの ?error= は描画時に確定している値なので、effect で後から setState せず
+  // そのまま初期値に使う（effect で入れると一瞬エラー無しの画面が挟まる）
+  const { error: errorParam } = use(searchParams);
+  const initialError = typeof errorParam === "string" ? errorParam : undefined;
+
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
-    "idle",
+    initialError ? "error" : "idle",
   );
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    const error = new URLSearchParams(window.location.search).get("error");
-    if (error === "forbidden") {
-      setStatus("error");
-      setMessage("このメールアドレスはログインを許可されていません。");
-    } else if (error) {
-      setStatus("error");
-      setMessage("ログインに失敗しました。もう一度お試しください。");
-    }
-  }, []);
+  const [message, setMessage] = useState(
+    initialError ? errorMessage(initialError) : "",
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,62 +64,57 @@ export default function LoginPage() {
     }
   }
 
+  const sending = status === "sending";
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-surface p-6">
-      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <Image
-          src="/brand/logo.svg"
-          alt="XKitchen"
-          width={223}
-          height={36}
-          priority
-          unoptimized
-          className="h-7 w-auto"
-        />
-        <h1 className="mt-4 text-xl font-semibold text-slate-900">
-          License CRM
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          社内メンバー用ログイン
-        </p>
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-slate-700"
-            >
-              メールアドレス
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@x-kitchen.jp"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
+    <main className="flex min-h-screen items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <Card>
+          <CardBody className="p-6 sm:p-8">
+            <Image
+              src="/brand/logo.svg"
+              alt="XKitchen"
+              width={223}
+              height={36}
+              priority
+              unoptimized
+              className="h-7 w-auto"
             />
-          </div>
+            <h1 className="mt-4 text-xl font-medium text-ink">License CRM</h1>
+            <p className="mt-1 text-sm text-ink-soft">社内メンバー用ログイン</p>
 
-          <button
-            type="submit"
-            disabled={status === "sending" || status === "sent"}
-            className="w-full rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800 disabled:opacity-50"
-          >
-            {status === "sending" ? "送信中…" : "ログインリンクを送信"}
-          </button>
-        </form>
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              <Field htmlFor="email" label="メールアドレス" required>
+                <Input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@x-kitchen.jp"
+                />
+              </Field>
 
-        {message && (
-          <p
-            className={`mt-4 text-sm ${
-              status === "error" ? "text-red-600" : "text-green-700"
-            }`}
-          >
-            {message}
-          </p>
-        )}
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={sending || status === "sent"}
+                aria-busy={sending}
+                className="w-full"
+              >
+                {sending ? "送信中…" : "ログインリンクを送信"}
+              </Button>
+            </form>
+
+            {message && (
+              <div className="mt-4">
+                <Banner tone={status === "error" ? "danger" : "ok"}>
+                  {message}
+                </Banner>
+              </div>
+            )}
+          </CardBody>
+        </Card>
       </div>
     </main>
   );

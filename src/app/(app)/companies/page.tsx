@@ -60,7 +60,7 @@ export default async function CompaniesPage() {
         <>
           {/* 広い画面は表。和文は列が潰れると縦積みになって読めなくなるため、
               狭い画面ではカードに落とす（表の横スクロールより読みやすい） */}
-          <Card className="hidden overflow-hidden sm:block">
+          <Card className="hidden sm:block">
             <Table caption="取引先の一覧">
               <THead>
                 <TR className="hover:bg-transparent">
