@@ -86,7 +86,7 @@ export async function toggleTaskDone(id: string, done: boolean) {
   revalidatePath(`/deals/${dealId}`);
   revalidatePath("/deals");
 
-  // 次アクション空白禁止ルール: 対象dealがアクティブ（稼働/ナーチャリング/失注ではない）かつ
+  // 次アクション空白禁止ルール: 対象dealがアクティブ（SV案内可能/時期見送り/失注ではない）かつ
   // 他に未完了タスクが無ければ、次のタスク登録画面へ誘導する。
   const { data: deal } = await supabase
     .from("deals")

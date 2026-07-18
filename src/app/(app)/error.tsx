@@ -19,7 +19,7 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="mx-auto max-w-2xl px-8 py-16">
+    <div className="px-8 py-16">
       <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
         <h1 className="text-lg font-semibold text-red-800">
           処理に失敗しました
@@ -33,7 +33,7 @@ export default function Error({
         <div className="mt-5 flex items-center gap-3">
           <button
             onClick={reset}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
           >
             もう一度試す
           </button>

@@ -1,7 +1,11 @@
+import { COMPANY_STATUS_STYLE, DECISION_ROLE_STYLE } from "@/components/badges";
 import Link from "next/link";
+import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { updateCompanySize } from "../actions";
 import {
+  COMPANY_SIZE,
   COMPANY_STATUS,
   CONTACT_DECISION_ROLE,
   CONTACT_DECISION_ROLE_MARK,
@@ -12,33 +16,6 @@ import {
   type Contact,
   type Deal,
 } from "@/lib/types";
-
-const STATUS_STYLE: Record<string, string> = {
-  prospect: "bg-slate-100 text-slate-600",
-  negotiating: "bg-amber-100 text-amber-700",
-  active: "bg-green-100 text-green-700",
-  lost: "bg-red-100 text-red-600",
-};
-
-const STAGE_STYLE: Record<string, string> = {
-  list: "bg-slate-100 text-slate-600",
-  selected: "bg-slate-200 text-slate-700",
-  contacting: "bg-blue-100 text-blue-700",
-  meeting_set: "bg-indigo-100 text-indigo-700",
-  meeting_done: "bg-violet-100 text-violet-700",
-  considering: "bg-amber-100 text-amber-700",
-  contract: "bg-green-100 text-green-700",
-  live: "bg-emerald-100 text-emerald-700",
-  nurturing: "bg-teal-100 text-teal-700",
-  lost: "bg-red-100 text-red-600",
-};
-
-// 決裁権バッジの強弱（決裁者を最も強く見せる）
-const DECISION_ROLE_STYLE: Record<string, string> = {
-  decision_maker: "bg-slate-900 text-white",
-  influencer: "bg-slate-200 text-slate-700",
-  gatekeeper: "bg-slate-100 text-slate-500",
-};
 
 export default async function CompanyDetailPage({
   params,
@@ -76,7 +53,7 @@ export default async function CompanyDetailPage({
   const deals = (dealData ?? []) as Deal[];
 
   return (
-    <div className="mx-auto max-w-4xl px-8 py-10">
+    <div className="px-8 py-10">
       <div className="mb-6">
         <Link href="/companies" className="text-sm text-slate-500 hover:text-slate-900">
           ← 取引先一覧
@@ -84,7 +61,7 @@ export default async function CompanyDetailPage({
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold text-slate-900">{company.name}</h1>
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[company.status]}`}
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${COMPANY_STATUS_STYLE[company.status]}`}
           >
             {COMPANY_STATUS[company.status]}
           </span>
@@ -98,6 +75,40 @@ export default async function CompanyDetailPage({
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
         <h2 className="mb-4 text-sm font-medium text-slate-500">基本情報</h2>
         <dl className="grid gap-4 text-sm sm:grid-cols-2">
+          <div>
+            <dt className="text-slate-400">
+              企業規模{" "}
+              <span className="text-slate-300">
+                （目安: 10店舗以上・従業員100名以上・上場系は大手）
+              </span>
+            </dt>
+            <dd className="mt-0.5">
+              <form
+                action={updateCompanySize}
+                className="flex items-center gap-2"
+              >
+                <input type="hidden" name="id" value={company.id} />
+                <select
+                  name="company_size"
+                  defaultValue={company.company_size ?? ""}
+                  className="rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-900 outline-none focus:border-brand-500"
+                >
+                  <option value="">未設定</option>
+                  {Object.entries(COMPANY_SIZE).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="submit"
+                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition hover:bg-slate-100"
+                >
+                  保存
+                </button>
+              </form>
+            </dd>
+          </div>
           <div>
             <dt className="text-slate-400">業種</dt>
             <dd className="mt-0.5 text-slate-900">{company.industry ?? "—"}</dd>
@@ -131,7 +142,7 @@ export default async function CompanyDetailPage({
           <h2 className="text-sm font-medium text-slate-500">担当者 {contacts.length} 名</h2>
           <Link
             href={`/companies/${company.id}/contacts/new`}
-            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
+            className="rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-brand-800"
           >
             + 担当者を追加
           </Link>
@@ -233,7 +244,7 @@ export default async function CompanyDetailPage({
                 </Link>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_STYLE[d.stage]}`}
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_BADGE_STYLE[d.stage]}`}
                   >
                     {DEAL_STAGE[d.stage]}
                   </span>

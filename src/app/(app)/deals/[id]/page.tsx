@@ -1,7 +1,9 @@
+import { SCENE_TAG_STYLE, TASK_PRIORITY_STYLE } from "@/components/badges";
 import Link from "next/link";
+import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { changeDealStage, updateDeal } from "../actions";
+import { applyStageTemplates, changeDealStage, updateDeal } from "../actions";
 import { toggleTaskDone } from "../../tasks/actions";
 import {
   CLOSED_DEAL_STAGES,
@@ -9,6 +11,7 @@ import {
   DEAL_STAGE,
   DEAL_STAGE_ORDER,
   MEETING_FORMAT,
+  PB_STATUS,
   SCENE_TAG,
   TASK_PRIORITY,
   type Company,
@@ -21,40 +24,14 @@ import {
   type Task,
 } from "@/lib/types";
 
-const STAGE_STYLE: Record<string, string> = {
-  list: "bg-slate-100 text-slate-600",
-  selected: "bg-slate-200 text-slate-700",
-  contacting: "bg-blue-100 text-blue-700",
-  meeting_set: "bg-indigo-100 text-indigo-700",
-  meeting_done: "bg-violet-100 text-violet-700",
-  considering: "bg-amber-100 text-amber-700",
-  contract: "bg-green-100 text-green-700",
-  live: "bg-emerald-100 text-emerald-700",
-  nurturing: "bg-teal-100 text-teal-700",
-  lost: "bg-red-100 text-red-600",
-};
-
 const field =
-  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
+  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
 const labelCls = "block text-sm font-medium text-slate-700";
-
-const PRIORITY_STYLE: Record<string, string> = {
-  low: "text-slate-400",
-  medium: "text-slate-600",
-  high: "text-red-600",
-};
-
-const SCENE_TAG_STYLE: Record<string, string> = {
-  pb_product: "bg-indigo-100 text-indigo-700",
-  maker_intro: "bg-blue-100 text-blue-700",
-  pricing: "bg-amber-100 text-amber-700",
-  contract_doc: "bg-slate-200 text-slate-700",
-  other: "bg-slate-100 text-slate-500",
-};
 
 type DealDetail = Deal & {
   companies: Pick<Company, "name"> | null;
   partners: Pick<Partner, "name"> | null;
+  genres: { name: string } | null;
 };
 
 // stage_events の changed_at（UTC ISO文字列）を JST 表示用に整形する
@@ -84,10 +61,11 @@ export default async function DealDetailPage({
     { data: taskData, error: taskError },
     { data: meetingData, error: meetingError },
     { data: knowledgeData, error: knowledgeError },
+    { data: genreStatData, error: genreStatError },
   ] = await Promise.all([
     supabase
       .from("deals")
-      .select("*, companies ( name ), partners ( name )")
+      .select("*, companies ( name ), partners ( name ), genres ( name )")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -115,6 +93,11 @@ export default async function DealDetailPage({
       .eq("status", "published")
       .order("published_at", { ascending: false })
       .limit(3),
+    // ジャンル選択肢（契約済みジャンルの注記付き）
+    supabase
+      .from("genre_stats")
+      .select("genre_id, name, is_active, sort_order, contracted_count")
+      .order("sort_order", { ascending: true }),
   ]);
 
   if (dealError || !dealData) {
@@ -124,14 +107,34 @@ export default async function DealDetailPage({
   // 副次クエリの読み取り失敗は、履歴やMTGが「無い」ように見せず障害として明示する
   // （空表示との誤認を防ぐ。RLS拒否は空配列を返すためここには乗らない）
   const secondaryError =
-    eventError ?? taskError ?? meetingError ?? knowledgeError;
+    eventError ?? taskError ?? meetingError ?? knowledgeError ?? genreStatError;
 
   const deal = dealData as DealDetail;
   const stageEvents = (eventData ?? []) as StageEvent[];
   const openTasks = (taskData ?? []) as Task[];
   const meetings = (meetingData ?? []) as Meeting[];
   const relatedKnowledge = (knowledgeData ?? []) as KnowledgeCard[];
-  // 次アクション空白禁止ルールの対象（稼働/ナーチャリング/失注は対象外）
+  const activeGenres = ((genreStatData ?? []) as {
+    genre_id: string;
+    name: string;
+    is_active: boolean;
+    contracted_count: number;
+  }[]).filter((g) => g.is_active);
+  // 現在のジャンルが非活性・取得失敗で選択肢から漏れると、メモだけ編集して保存した時に
+  // ブラウザが先頭（未設定）を送り genre_id が黙って null に消える。必ず現在値を選択肢に残す。
+  const genreOptions =
+    deal.genre_id && !activeGenres.some((g) => g.genre_id === deal.genre_id)
+      ? [
+          {
+            genre_id: deal.genre_id,
+            name: deal.genres?.name ?? "（無効なジャンル）",
+            is_active: false,
+            contracted_count: 0,
+          },
+          ...activeGenres,
+        ]
+      : activeGenres;
+  // 次アクション空白禁止ルールの対象（SV案内可能/時期見送り/失注は対象外）
   const isActiveDeal = !CLOSED_DEAL_STAGES.includes(deal.stage);
 
   async function markTaskDone(formData: FormData) {
@@ -153,7 +156,7 @@ export default async function DealDetailPage({
   const doneUpTo = isOffPath ? furthestIndex : stageIndex;
 
   return (
-    <div className="mx-auto max-w-3xl px-8 py-10">
+    <div className="px-8 py-10">
       <div className="mb-6">
         <Link href="/deals" className="text-sm text-slate-500 hover:text-slate-900">
           ← 案件一覧
@@ -161,7 +164,7 @@ export default async function DealDetailPage({
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold text-slate-900">{deal.title}</h1>
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_STYLE[deal.stage]}`}
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_BADGE_STYLE[deal.stage]}`}
           >
             {DEAL_STAGE[deal.stage]}
           </span>
@@ -181,14 +184,24 @@ export default async function DealDetailPage({
           <h2 className="text-sm font-medium text-slate-500">
             次アクション{openTasks.length > 0 ? `（${openTasks.length} 件）` : ""}
           </h2>
-          {openTasks.length > 0 && (
+          <span className="flex items-center gap-3">
+            {/* 現ステージの雛形タスクを後から展開する（移行案件などタスク未展開の救済） */}
+            <form action={applyStageTemplates}>
+              <input type="hidden" name="id" value={deal.id} />
+              <button
+                type="submit"
+                className="text-xs text-slate-500 hover:text-slate-900 hover:underline"
+              >
+                雛形から追加
+              </button>
+            </form>
             <Link
               href={`/tasks/new?deal_id=${deal.id}`}
               className="text-xs text-slate-500 hover:text-slate-900 hover:underline"
             >
               + 追加
             </Link>
-          )}
+          </span>
         </div>
 
         {openTasks.length > 0 ? (
@@ -206,7 +219,7 @@ export default async function DealDetailPage({
                   </button>
                 </form>
                 <p className="min-w-0 flex-1 font-medium text-slate-900">{t.title}</p>
-                <span className={`text-xs font-medium ${PRIORITY_STYLE[t.priority]}`}>
+                <span className={`text-xs font-medium ${TASK_PRIORITY_STYLE[t.priority]}`}>
                   {TASK_PRIORITY[t.priority]}
                 </span>
                 <span className="w-24 text-right text-xs text-slate-400">
@@ -249,6 +262,16 @@ export default async function DealDetailPage({
             <dt className="text-slate-400">紹介元パートナー</dt>
             <dd className="mt-0.5 text-slate-900">{deal.partners?.name ?? "—"}</dd>
           </div>
+          <div>
+            <dt className="text-slate-400">ジャンル</dt>
+            <dd className="mt-0.5 text-slate-900">{deal.genres?.name ?? "未設定"}</dd>
+          </div>
+          <div>
+            <dt className="text-slate-400">PB品の状態</dt>
+            <dd className="mt-0.5 text-slate-900">
+              {deal.pb_status ? PB_STATUS[deal.pb_status] : "未確認"}
+            </dd>
+          </div>
         </dl>
         <p className="mt-4 border-t border-slate-100 pt-4 text-sm text-slate-500">
           担当者（人物情報）は取引先ページで管理しています。{" "}
@@ -273,9 +296,9 @@ export default async function DealDetailPage({
                 <span
                   className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
                     isCurrent
-                      ? "border-slate-900 bg-white text-slate-900"
+                      ? "border-brand-700 bg-white text-slate-900"
                       : isDone
-                        ? "border-slate-900 bg-slate-900 text-white"
+                        ? "border-brand-700 bg-brand-700 text-white"
                         : "border-slate-200 bg-white text-slate-400"
                   }`}
                 >
@@ -325,31 +348,75 @@ export default async function DealDetailPage({
           </div>
           <button
             type="submit"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
           >
             変更する
           </button>
         </form>
       </section>
 
-      {/* メモ */}
+      {/* 案件情報の編集（ジャンル / PB品 / メモ） */}
       <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-3 text-sm font-medium text-slate-500">メモ</h2>
-        <form action={updateDeal}>
+        <h2 className="mb-3 text-sm font-medium text-slate-500">案件情報の編集</h2>
+        <form action={updateDeal} className="space-y-4">
           <input type="hidden" name="id" value={deal.id} />
-          <textarea
-            id="note"
-            name="note"
-            rows={5}
-            defaultValue={deal.note ?? ""}
-            className={field}
-          />
-          <div className="mt-3">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="genre_id" className={labelCls}>
+                ジャンル
+              </label>
+              <select
+                id="genre_id"
+                name="genre_id"
+                defaultValue={deal.genre_id ?? ""}
+                className={field}
+              >
+                <option value="">（未設定）</option>
+                {genreOptions.map((g) => (
+                  <option key={g.genre_id} value={g.genre_id}>
+                    {g.name}
+                    {g.contracted_count > 0 ? "（契約済・優先度低）" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="pb_status" className={labelCls}>
+                PB品の状態
+              </label>
+              <select
+                id="pb_status"
+                name="pb_status"
+                defaultValue={deal.pb_status ?? ""}
+                className={field}
+              >
+                <option value="">（未確認）</option>
+                {Object.entries(PB_STATUS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label htmlFor="note" className={labelCls}>
+              メモ
+            </label>
+            <textarea
+              id="note"
+              name="note"
+              rows={5}
+              defaultValue={deal.note ?? ""}
+              className={field}
+            />
+          </div>
+          <div>
             <button
               type="submit"
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+              className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
             >
-              メモを保存
+              保存する
             </button>
           </div>
         </form>

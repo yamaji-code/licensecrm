@@ -22,7 +22,7 @@ export default async function MeetingsPage() {
   const meetings = (data ?? []) as MeetingRow[];
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
+    <div className="px-8 py-10">
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">MTG</h1>
@@ -30,7 +30,7 @@ export default async function MeetingsPage() {
         </div>
         <Link
           href="/meetings/new"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+          className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
         >
           + MTGを記録
         </Link>

@@ -112,8 +112,8 @@ export default function Nav() {
             aria-current={current ? "page" : undefined}
             className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
               current
-                ? "bg-blue-700 font-medium text-white"
-                : "text-blue-100 hover:bg-blue-800 hover:text-white"
+                ? "bg-brand-600 font-medium text-white"
+                : "text-brand-100 hover:bg-brand-600/60 hover:text-white"
             }`}
           >
             <Icon className="h-5 w-5 shrink-0" />

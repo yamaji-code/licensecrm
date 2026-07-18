@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { createCompany } from "../actions";
-import { COMPANY_STATUS } from "@/lib/types";
+import { COMPANY_SIZE, COMPANY_STATUS } from "@/lib/types";
 
 const field =
-  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
+  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
 const labelCls = "block text-sm font-medium text-slate-700";
 
 export default function NewCompanyPage() {
   return (
-    <div className="mx-auto max-w-2xl px-8 py-10">
+    <div className="px-8 py-10">
       <div className="mb-6">
         <Link href="/companies" className="text-sm text-slate-500 hover:text-slate-900">
           ← 取引先一覧
@@ -50,6 +50,27 @@ export default function NewCompanyPage() {
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
+            <label htmlFor="company_size" className={labelCls}>
+              企業規模{" "}
+              <span className="font-normal text-slate-400">
+                目安: 10店舗以上・従業員100名以上・上場系は大手
+              </span>
+            </label>
+            <select
+              id="company_size"
+              name="company_size"
+              defaultValue=""
+              className={field}
+            >
+              <option value="">（未設定）</option>
+              {Object.entries(COMPANY_SIZE).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label htmlFor="industry" className={labelCls}>
               業種
             </label>
@@ -87,7 +108,7 @@ export default function NewCompanyPage() {
         <div className="flex items-center gap-3 pt-2">
           <button
             type="submit"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
           >
             登録する
           </button>

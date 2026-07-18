@@ -1,13 +1,7 @@
+import { COMPANY_STATUS_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { COMPANY_STATUS, type Company } from "@/lib/types";
-
-const STATUS_STYLE: Record<string, string> = {
-  prospect: "bg-slate-100 text-slate-600",
-  negotiating: "bg-amber-100 text-amber-700",
-  active: "bg-green-100 text-green-700",
-  lost: "bg-red-100 text-red-600",
-};
+import { COMPANY_SIZE, COMPANY_STATUS, type Company } from "@/lib/types";
 
 export default async function CompaniesPage() {
   const supabase = await createClient();
@@ -19,7 +13,7 @@ export default async function CompaniesPage() {
   const companies = (data ?? []) as Company[];
 
   return (
-    <div className="mx-auto max-w-5xl px-8 py-10">
+    <div className="px-8 py-10">
       <header className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">取引先・顧客</h1>
@@ -27,7 +21,7 @@ export default async function CompaniesPage() {
         </div>
         <Link
           href="/companies/new"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+          className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
         >
           + 新規登録
         </Link>
@@ -46,6 +40,7 @@ export default async function CompaniesPage() {
               <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
                 <th className="px-5 py-3 font-medium">会社名</th>
                 <th className="px-5 py-3 font-medium">ステータス</th>
+                <th className="px-5 py-3 font-medium">規模</th>
                 <th className="px-5 py-3 font-medium">業種</th>
                 <th className="px-5 py-3 font-medium">電話</th>
               </tr>
@@ -67,11 +62,14 @@ export default async function CompaniesPage() {
                   <td className="px-5 py-3">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        STATUS_STYLE[c.status]
+                        COMPANY_STATUS_STYLE[c.status]
                       }`}
                     >
                       {COMPANY_STATUS[c.status]}
                     </span>
+                  </td>
+                  <td className="px-5 py-3 text-slate-600">
+                    {c.company_size ? COMPANY_SIZE[c.company_size] : "未設定"}
                   </td>
                   <td className="px-5 py-3 text-slate-600">{c.industry ?? "—"}</td>
                   <td className="px-5 py-3 text-slate-600">{c.phone ?? "—"}</td>

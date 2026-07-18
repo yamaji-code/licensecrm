@@ -1,3 +1,4 @@
+import { KNOWLEDGE_STATUS_STYLE, SCENE_TAG_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { answerCard, createKnowledgeCard, publishCard, requestReview } from "./actions";
@@ -12,23 +13,8 @@ import {
 } from "@/lib/types";
 
 const field =
-  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
+  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
 const labelCls = "block text-sm font-medium text-slate-700";
-
-const SCENE_TAG_STYLE: Record<string, string> = {
-  pb_product: "bg-indigo-100 text-indigo-700",
-  maker_intro: "bg-blue-100 text-blue-700",
-  pricing: "bg-amber-100 text-amber-700",
-  contract_doc: "bg-slate-200 text-slate-700",
-  other: "bg-slate-100 text-slate-500",
-};
-
-const STATUS_STYLE: Record<string, string> = {
-  open: "bg-slate-100 text-slate-600",
-  review_requested: "bg-amber-100 text-amber-700",
-  answered: "bg-blue-100 text-blue-700",
-  published: "bg-green-100 text-green-700",
-};
 
 const QUEUE_STATUSES = ["open", "review_requested", "answered"] as const;
 
@@ -45,7 +31,7 @@ type DealOption = Pick<Deal, "id" | "title"> & {
 function tabLinkCls(active: boolean): string {
   return `border-b-2 px-4 py-2 text-sm font-medium transition ${
     active
-      ? "border-slate-900 text-slate-900"
+      ? "border-brand-700 text-slate-900"
       : "border-transparent text-slate-400 hover:text-slate-700"
   }`;
 }
@@ -112,7 +98,7 @@ export default async function KnowledgePage({
   const deals = (dealData ?? []) as DealOption[];
 
   return (
-    <div className="mx-auto max-w-4xl px-8 py-10">
+    <div className="px-8 py-10">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900">ナレッジ</h1>
         <p className="mt-1 text-sm text-slate-500">
@@ -147,7 +133,7 @@ export default async function KnowledgePage({
               id="scene_tag"
               name="scene_tag"
               defaultValue={sceneTagFilter ?? ""}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             >
               <option value="">すべて</option>
               {Object.entries(SCENE_TAG).map(([value, label]) => (
@@ -227,7 +213,7 @@ export default async function KnowledgePage({
                       {SCENE_TAG[c.scene_tag]}
                     </span>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[c.status]}`}
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${KNOWLEDGE_STATUS_STYLE[c.status]}`}
                     >
                       {KNOWLEDGE_STATUS[c.status]}
                     </span>
@@ -260,7 +246,7 @@ export default async function KnowledgePage({
                       <input type="hidden" name="id" value={c.id} />
                       <button
                         type="submit"
-                        className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
+                        className="rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-brand-800"
                       >
                         山路に確認
                       </button>
@@ -285,7 +271,7 @@ export default async function KnowledgePage({
                       />
                       <button
                         type="submit"
-                        className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
+                        className="rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-brand-800"
                       >
                         回答する
                       </button>
@@ -381,7 +367,7 @@ export default async function KnowledgePage({
               <div>
                 <button
                   type="submit"
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+                  className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
                 >
                   登録する
                 </button>

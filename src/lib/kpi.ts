@@ -37,3 +37,46 @@ export function getQuarterRange(now: Date = new Date()): {
 
   return { start, end, label: `${fiscalYear} Q${quarterIndex + 1}` };
 }
+
+// 指定した ISO 日時が四半期レンジ [start, end) に入っているか判定する
+export function inRange(iso: string | null, start: Date, end: Date): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return t >= start.getTime() && t < end.getTime();
+}
+
+// 分母が 0 のときは "—" にしてゼロ除算エラー・NaN 表示を避ける
+export function formatRate(numerator: number, denominator: number): string {
+  if (denominator === 0) return "—";
+  return `${Math.round((numerator / denominator) * 100)}%`;
+}
+
+// 当四半期の商談・契約件数の集計（ダッシュボードとボード上部 KPI バーの共通ロジック。
+// 同じ関数を使うことで 2 画面の数値が構造的に一致する）。
+export function summarizeQuarterKpi(
+  facts: { first_meeting_at: string | null; first_contract_at: string | null }[],
+  now: Date = new Date(),
+): {
+  quarterLabel: string;
+  start: Date;
+  end: Date;
+  meetingsCount: number;
+  contractsCount: number;
+  targets: typeof KPI_TARGET;
+} {
+  const { start, end, label } = getQuarterRange(now);
+  const meetingsCount = facts.filter((f) =>
+    inRange(f.first_meeting_at, start, end),
+  ).length;
+  const contractsCount = facts.filter((f) =>
+    inRange(f.first_contract_at, start, end),
+  ).length;
+  return {
+    quarterLabel: label,
+    start,
+    end,
+    meetingsCount,
+    contractsCount,
+    targets: KPI_TARGET,
+  };
+}
