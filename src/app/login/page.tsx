@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -52,9 +53,20 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+    <main className="flex min-h-screen items-center justify-center bg-surface p-6">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-        <h1 className="text-xl font-semibold text-slate-900">License CRM</h1>
+        <Image
+          src="/brand/logo.svg"
+          alt="XKitchen"
+          width={223}
+          height={36}
+          priority
+          unoptimized
+          className="h-7 w-auto"
+        />
+        <h1 className="mt-4 text-xl font-semibold text-slate-900">
+          License CRM
+        </h1>
         <p className="mt-1 text-sm text-slate-500">
           社内メンバー用ログイン
         </p>
@@ -74,14 +86,14 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@x-kitchen.jp"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
             />
           </div>
 
           <button
             type="submit"
             disabled={status === "sending" || status === "sent"}
-            className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-50"
+            className="w-full rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800 disabled:opacity-50"
           >
             {status === "sending" ? "送信中…" : "ログインリンクを送信"}
           </button>

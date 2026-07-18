@@ -1,3 +1,4 @@
+import { COMPANY_STATUS_STYLE, DECISION_ROLE_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
@@ -15,20 +16,6 @@ import {
   type Contact,
   type Deal,
 } from "@/lib/types";
-
-const STATUS_STYLE: Record<string, string> = {
-  prospect: "bg-slate-100 text-slate-600",
-  negotiating: "bg-amber-100 text-amber-700",
-  active: "bg-green-100 text-green-700",
-  lost: "bg-red-100 text-red-600",
-};
-
-// 決裁権バッジの強弱（決裁者を最も強く見せる）
-const DECISION_ROLE_STYLE: Record<string, string> = {
-  decision_maker: "bg-slate-900 text-white",
-  influencer: "bg-slate-200 text-slate-700",
-  gatekeeper: "bg-slate-100 text-slate-500",
-};
 
 export default async function CompanyDetailPage({
   params,
@@ -74,7 +61,7 @@ export default async function CompanyDetailPage({
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold text-slate-900">{company.name}</h1>
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[company.status]}`}
+            className={`rounded-full px-2 py-0.5 text-xs font-medium ${COMPANY_STATUS_STYLE[company.status]}`}
           >
             {COMPANY_STATUS[company.status]}
           </span>
@@ -104,7 +91,7 @@ export default async function CompanyDetailPage({
                 <select
                   name="company_size"
                   defaultValue={company.company_size ?? ""}
-                  className="rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-900 outline-none focus:border-slate-500"
+                  className="rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-900 outline-none focus:border-brand-500"
                 >
                   <option value="">未設定</option>
                   {Object.entries(COMPANY_SIZE).map(([value, label]) => (
@@ -155,7 +142,7 @@ export default async function CompanyDetailPage({
           <h2 className="text-sm font-medium text-slate-500">担当者 {contacts.length} 名</h2>
           <Link
             href={`/companies/${company.id}/contacts/new`}
-            className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-700"
+            className="rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-brand-800"
           >
             + 担当者を追加
           </Link>

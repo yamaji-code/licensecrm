@@ -33,7 +33,7 @@ export default function Error({
         <div className="mt-5 flex items-center gap-3">
           <button
             onClick={reset}
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
           >
             もう一度試す
           </button>

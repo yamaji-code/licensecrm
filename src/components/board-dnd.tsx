@@ -62,7 +62,7 @@ export function DropColumn({
         if (id) startTransition(() => moveDealToStage(id, stage));
       }}
       className={`${className} ${
-        over ? "rounded-2xl ring-2 ring-inset ring-teal-400" : ""
+        over ? "rounded-2xl ring-2 ring-inset ring-brand-400" : ""
       } ${isPending ? "opacity-60" : ""}`}
     >
       {children}

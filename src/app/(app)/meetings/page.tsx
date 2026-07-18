@@ -30,7 +30,7 @@ export default async function MeetingsPage() {
         </div>
         <Link
           href="/meetings/new"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+          className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
         >
           + MTGを記録
         </Link>

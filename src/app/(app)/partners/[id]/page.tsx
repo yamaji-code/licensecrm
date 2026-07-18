@@ -1,3 +1,4 @@
+import { PARTNER_TYPE_STYLE, REFERRAL_DIRECTION_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
@@ -15,21 +16,8 @@ import {
 } from "@/lib/types";
 
 const field =
-  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
+  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
 const labelCls = "block text-sm font-medium text-slate-700";
-
-const PARTNER_TYPE_STYLE: Record<string, string> = {
-  maker: "bg-blue-100 text-blue-700",
-  wholesaler: "bg-indigo-100 text-indigo-700",
-  company: "bg-slate-100 text-slate-600",
-  customer: "bg-emerald-100 text-emerald-700",
-};
-
-// 紹介の方向バッジ（紹介された=もらった側なので緑、紹介した=渡した側なので青）
-const DIRECTION_STYLE: Record<string, string> = {
-  received: "bg-emerald-100 text-emerald-700",
-  given: "bg-blue-100 text-blue-700",
-};
 
 type DealRow = Deal & { companies: Pick<Company, "name"> | null };
 
@@ -218,7 +206,7 @@ export default async function PartnerDetailPage({
           <div className="pt-2">
             <button
               type="submit"
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+              className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
             >
               更新する
             </button>
@@ -283,7 +271,7 @@ export default async function PartnerDetailPage({
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      DIRECTION_STYLE[r.direction]
+                      REFERRAL_DIRECTION_STYLE[r.direction]
                     }`}
                   >
                     {REFERRAL_DIRECTION[r.direction]}
@@ -391,7 +379,7 @@ export default async function PartnerDetailPage({
           <div className="pt-2">
             <button
               type="submit"
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+              className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
             >
               記録を追加
             </button>

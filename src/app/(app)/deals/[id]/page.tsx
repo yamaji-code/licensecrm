@@ -1,3 +1,4 @@
+import { SCENE_TAG_STYLE, TASK_PRIORITY_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
@@ -24,22 +25,8 @@ import {
 } from "@/lib/types";
 
 const field =
-  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
+  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
 const labelCls = "block text-sm font-medium text-slate-700";
-
-const PRIORITY_STYLE: Record<string, string> = {
-  low: "text-slate-400",
-  medium: "text-slate-600",
-  high: "text-red-600",
-};
-
-const SCENE_TAG_STYLE: Record<string, string> = {
-  pb_product: "bg-indigo-100 text-indigo-700",
-  maker_intro: "bg-blue-100 text-blue-700",
-  pricing: "bg-amber-100 text-amber-700",
-  contract_doc: "bg-slate-200 text-slate-700",
-  other: "bg-slate-100 text-slate-500",
-};
 
 type DealDetail = Deal & {
   companies: Pick<Company, "name"> | null;
@@ -232,7 +219,7 @@ export default async function DealDetailPage({
                   </button>
                 </form>
                 <p className="min-w-0 flex-1 font-medium text-slate-900">{t.title}</p>
-                <span className={`text-xs font-medium ${PRIORITY_STYLE[t.priority]}`}>
+                <span className={`text-xs font-medium ${TASK_PRIORITY_STYLE[t.priority]}`}>
                   {TASK_PRIORITY[t.priority]}
                 </span>
                 <span className="w-24 text-right text-xs text-slate-400">
@@ -309,9 +296,9 @@ export default async function DealDetailPage({
                 <span
                   className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${
                     isCurrent
-                      ? "border-slate-900 bg-white text-slate-900"
+                      ? "border-brand-700 bg-white text-slate-900"
                       : isDone
-                        ? "border-slate-900 bg-slate-900 text-white"
+                        ? "border-brand-700 bg-brand-700 text-white"
                         : "border-slate-200 bg-white text-slate-400"
                   }`}
                 >
@@ -361,7 +348,7 @@ export default async function DealDetailPage({
           </div>
           <button
             type="submit"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
           >
             変更する
           </button>
@@ -427,7 +414,7 @@ export default async function DealDetailPage({
           <div>
             <button
               type="submit"
-              className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+              className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
             >
               保存する
             </button>

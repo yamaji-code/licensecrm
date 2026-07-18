@@ -4,7 +4,7 @@ import { createTask } from "../actions";
 import { TASK_PRIORITY, TASK_STATUS, type Company, type Deal } from "@/lib/types";
 
 const field =
-  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500";
+  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
 const labelCls = "block text-sm font-medium text-slate-700";
 
 type DealOption = Pick<Deal, "id" | "title"> & {
@@ -148,7 +148,7 @@ export default async function NewTaskPage({
         <div className="flex items-center gap-3 pt-2">
           <button
             type="submit"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
           >
             登録する
           </button>

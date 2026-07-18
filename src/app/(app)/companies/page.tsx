@@ -1,13 +1,7 @@
+import { COMPANY_STATUS_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { COMPANY_SIZE, COMPANY_STATUS, type Company } from "@/lib/types";
-
-const STATUS_STYLE: Record<string, string> = {
-  prospect: "bg-slate-100 text-slate-600",
-  negotiating: "bg-amber-100 text-amber-700",
-  active: "bg-green-100 text-green-700",
-  lost: "bg-red-100 text-red-600",
-};
 
 export default async function CompaniesPage() {
   const supabase = await createClient();
@@ -27,7 +21,7 @@ export default async function CompaniesPage() {
         </div>
         <Link
           href="/companies/new"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+          className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
         >
           + 新規登録
         </Link>
@@ -68,7 +62,7 @@ export default async function CompaniesPage() {
                   <td className="px-5 py-3">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        STATUS_STYLE[c.status]
+                        COMPANY_STATUS_STYLE[c.status]
                       }`}
                     >
                       {COMPANY_STATUS[c.status]}

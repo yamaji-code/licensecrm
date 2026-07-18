@@ -1,3 +1,4 @@
+import { TASK_PRIORITY_STYLE, TASK_STATUS_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -6,18 +7,6 @@ import {
   type Task,
 } from "@/lib/types";
 import { toggleTaskDone } from "./actions";
-
-const STATUS_STYLE: Record<string, string> = {
-  todo: "bg-slate-100 text-slate-600",
-  doing: "bg-blue-100 text-blue-700",
-  done: "bg-green-100 text-green-700",
-};
-
-const PRIORITY_STYLE: Record<string, string> = {
-  low: "text-slate-400",
-  medium: "text-slate-600",
-  high: "text-red-600",
-};
 
 type TaskWithCompany = Task & { companies: { name: string } | null };
 
@@ -47,7 +36,7 @@ export default async function TasksPage() {
         </div>
         <Link
           href="/tasks/new"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+          className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
         >
           + 新規登録
         </Link>
@@ -99,12 +88,12 @@ export default async function TasksPage() {
                   )}
                 </div>
 
-                <span className={`text-xs font-medium ${PRIORITY_STYLE[t.priority]}`}>
+                <span className={`text-xs font-medium ${TASK_PRIORITY_STYLE[t.priority]}`}>
                   {TASK_PRIORITY[t.priority]}
                 </span>
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                    STATUS_STYLE[t.status]
+                    TASK_STATUS_STYLE[t.status]
                   }`}
                 >
                   {TASK_STATUS[t.status]}

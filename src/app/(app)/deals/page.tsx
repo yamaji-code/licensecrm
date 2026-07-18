@@ -189,7 +189,7 @@ export default async function DealsPage({
                   type="submit"
                   className={`rounded-md px-3 py-1.5 font-medium transition ${
                     density === "comfortable"
-                      ? "bg-slate-900 text-white"
+                      ? "bg-brand-700 text-white"
                       : "text-slate-600 hover:bg-slate-100"
                   }`}
                 >
@@ -202,7 +202,7 @@ export default async function DealsPage({
                   type="submit"
                   className={`rounded-md px-3 py-1.5 font-medium transition ${
                     density === "compact"
-                      ? "bg-slate-900 text-white"
+                      ? "bg-brand-700 text-white"
                       : "text-slate-600 hover:bg-slate-100"
                   }`}
                 >
@@ -218,7 +218,7 @@ export default async function DealsPage({
               className={`rounded-md px-3 py-1.5 font-medium transition ${
                 isTable
                   ? "text-slate-600 hover:bg-slate-100"
-                  : "bg-slate-900 text-white"
+                  : "bg-brand-700 text-white"
               }`}
             >
               ボード
@@ -227,7 +227,7 @@ export default async function DealsPage({
               href="/deals?view=table"
               className={`rounded-md px-3 py-1.5 font-medium transition ${
                 isTable
-                  ? "bg-slate-900 text-white"
+                  ? "bg-brand-700 text-white"
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
@@ -236,7 +236,7 @@ export default async function DealsPage({
           </div>
           <Link
             href="/deals/new"
-            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
           >
             + 案件を追加
           </Link>
@@ -529,7 +529,7 @@ function DealCard({
             <button
               type="submit"
               title={`${nextLabel}へ進む`}
-              className={`flex w-full items-center justify-center gap-1 rounded-lg bg-slate-900 px-3 text-xs font-medium text-white transition hover:bg-slate-700 ${
+              className={`flex w-full items-center justify-center gap-1 rounded-lg bg-brand-700 px-3 text-xs font-medium text-white transition hover:bg-brand-800 ${
                 isCompact ? "py-1" : "py-1.5"
               }`}
             >
@@ -584,7 +584,7 @@ function TableView({
           id="stage"
           name="stage"
           defaultValue={stageFilter ?? ""}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
         >
           <option value="">すべて</option>
           {Object.entries(DEAL_STAGE).map(([value, label]) => (
@@ -600,7 +600,7 @@ function TableView({
           id="genre"
           name="genre"
           defaultValue={genreFilter ?? ""}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500"
+          className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
         >
           <option value="">すべて</option>
           {genres.map((g) => (

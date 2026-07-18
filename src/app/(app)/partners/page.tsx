@@ -1,3 +1,4 @@
+import { PARTNER_TYPE_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -6,13 +7,6 @@ import {
   type Partner,
   type Referral,
 } from "@/lib/types";
-
-const PARTNER_TYPE_STYLE: Record<string, string> = {
-  maker: "bg-blue-100 text-blue-700",
-  wholesaler: "bg-indigo-100 text-indigo-700",
-  company: "bg-slate-100 text-slate-600",
-  customer: "bg-emerald-100 text-emerald-700",
-};
 
 // 分母が 0 のときは "—" にしてゼロ除算エラー・NaN 表示を避ける
 function formatRate(numerator: number, denominator: number): string {
@@ -74,7 +68,7 @@ export default async function PartnersPage() {
         </div>
         <Link
           href="/partners/new"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+          className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
         >
           + 新規登録
         </Link>
