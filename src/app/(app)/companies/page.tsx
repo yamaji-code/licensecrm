@@ -2,6 +2,20 @@ import { COMPANY_STATUS_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { COMPANY_SIZE, COMPANY_STATUS, type Company } from "@/lib/types";
+import {
+  ButtonLink,
+  Card,
+  EmptyState,
+  LoadErrorBanner,
+  PageHeader,
+  PageShell,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  Table,
+} from "@/components/ui";
 
 export default async function CompaniesPage() {
   const supabase = await createClient();
@@ -13,76 +27,111 @@ export default async function CompaniesPage() {
   const companies = (data ?? []) as Company[];
 
   return (
-    <div className="px-8 py-10">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">取引先・顧客</h1>
-          <p className="mt-1 text-sm text-slate-500">{companies.length} 社</p>
-        </div>
-        <Link
-          href="/companies/new"
-          className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
-        >
-          + 新規登録
-        </Link>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="取引先・顧客"
+        meta={`${companies.length} 社`}
+        actions={
+          <ButtonLink href="/companies/new" variant="primary">
+            新規登録
+          </ButtonLink>
+        }
+      />
 
       {error && (
-        <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          読み込みエラー: {error.message}（マイグレーション未実行の可能性があります）
-        </p>
+        <div className="mb-4">
+          <LoadErrorBanner message={error.message} />
+        </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        {companies.length > 0 ? (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                <th className="px-5 py-3 font-medium">会社名</th>
-                <th className="px-5 py-3 font-medium">ステータス</th>
-                <th className="px-5 py-3 font-medium">規模</th>
-                <th className="px-5 py-3 font-medium">業種</th>
-                <th className="px-5 py-3 font-medium">電話</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {companies.map((c) => (
-                <tr key={c.id} className="transition hover:bg-slate-50">
-                  <td className="px-5 py-3">
-                    <Link
-                      href={`/companies/${c.id}`}
-                      className="font-medium text-slate-900 hover:underline"
-                    >
-                      {c.name}
-                    </Link>
-                    {c.name_kana && (
-                      <p className="text-xs text-slate-400">{c.name_kana}</p>
-                    )}
-                  </td>
-                  <td className="px-5 py-3">
+      {companies.length === 0 ? (
+        <Card>
+          <EmptyState
+            title="まだ取引先が登録されていません"
+            description="営業先の会社を登録すると、案件・担当者・MTGログを紐づけて管理できます。"
+            action={
+              <ButtonLink href="/companies/new" variant="primary" size="sm">
+                最初の取引先を登録
+              </ButtonLink>
+            }
+          />
+        </Card>
+      ) : (
+        <>
+          {/* 広い画面は表。和文は列が潰れると縦積みになって読めなくなるため、
+              狭い画面ではカードに落とす（表の横スクロールより読みやすい） */}
+          <Card className="hidden sm:block">
+            <Table caption="取引先の一覧">
+              <THead>
+                <TR className="hover:bg-transparent">
+                  <TH>会社名</TH>
+                  <TH>ステータス</TH>
+                  <TH>規模</TH>
+                  <TH>業種</TH>
+                  <TH>電話</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {companies.map((c) => (
+                  <TR key={c.id}>
+                    <TD>
+                      <Link
+                        href={`/companies/${c.id}`}
+                        className="font-medium text-ink hover:text-brand-700 hover:underline"
+                      >
+                        {c.name}
+                      </Link>
+                      {c.name_kana && (
+                        <p className="text-xs text-ink-faint">{c.name_kana}</p>
+                      )}
+                    </TD>
+                    <TD>
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                          COMPANY_STATUS_STYLE[c.status]
+                        }`}
+                      >
+                        {COMPANY_STATUS[c.status]}
+                      </span>
+                    </TD>
+                    <TD className="text-ink-soft">
+                      {c.company_size ? COMPANY_SIZE[c.company_size] : "未設定"}
+                    </TD>
+                    <TD className="text-ink-soft">{c.industry ?? "—"}</TD>
+                    <TD className="text-ink-soft">{c.phone ?? "—"}</TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </Card>
+
+          <ul className="space-y-2 sm:hidden">
+            {companies.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/companies/${c.id}`}
+                  className="block rounded-card border border-line bg-white px-4 py-3 shadow-card transition-colors hover:border-brand-200"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium text-ink">{c.name}</span>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
                         COMPANY_STATUS_STYLE[c.status]
                       }`}
                     >
                       {COMPANY_STATUS[c.status]}
                     </span>
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">
-                    {c.company_size ? COMPANY_SIZE[c.company_size] : "未設定"}
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">{c.industry ?? "—"}</td>
-                  <td className="px-5 py-3 text-slate-600">{c.phone ?? "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">
-            まだ取引先が登録されていません。「新規登録」から追加してください。
-          </p>
-        )}
-      </div>
-    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-ink-soft">
+                    {c.company_size ? COMPANY_SIZE[c.company_size] : "規模未設定"}
+                    {c.industry ? ` ・ ${c.industry}` : ""}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </PageShell>
   );
 }

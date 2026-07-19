@@ -4,6 +4,11 @@
 // global-error は root layout ごと置き換わるため html/body を自前で描画し、
 // Tailwind が効かない前提でインラインスタイルを使う（xkitchen-tools と同じ方針）。
 // ※ 通常のページ/フォームのエラーは (app)/error.tsx が先に受け止める。
+//
+// 色は globals.css のトークン実値をそのまま写す（Tailwind が使えないため参照できない）。
+// トークンを変えたらこの値も合わせること。
+//   surface #f6f7fb / line #e3e6ee / ink #1f2430 / ink-soft #5b6478
+//   ink-faint #858da1 / brand-700 #1a2872 / radius-card 10px
 import { useEffect } from "react";
 
 export default function GlobalError({
@@ -20,7 +25,7 @@ export default function GlobalError({
 
   return (
     <html lang="ja">
-      <body style={{ margin: 0, background: "#f8fafc" }}>
+      <body style={{ margin: 0, background: "#f6f7fb" }}>
         <div
           style={{
             minHeight: "100vh",
@@ -37,8 +42,8 @@ export default function GlobalError({
               maxWidth: 460,
               width: "100%",
               background: "#fff",
-              border: "1px solid #e2e8f0",
-              borderRadius: 16,
+              border: "1px solid #e3e6ee",
+              borderRadius: 10,
               padding: 32,
               textAlign: "center",
             }}
@@ -47,7 +52,7 @@ export default function GlobalError({
               style={{
                 fontSize: 18,
                 fontWeight: 600,
-                color: "#0f172a",
+                color: "#1f2430",
                 margin: "0 0 12px",
               }}
             >
@@ -57,13 +62,13 @@ export default function GlobalError({
               style={{
                 fontSize: 14,
                 lineHeight: 1.7,
-                color: "#475569",
+                color: "#5b6478",
                 margin: "0 0 8px",
               }}
             >
               ページの表示中に問題が発生しました。もう一度お試しください。
             </p>
-            <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 24px" }}>
+            <p style={{ fontSize: 12, color: "#858da1", margin: "0 0 24px" }}>
               直前に入力した内容は残らない場合があります。
             </p>
             <button
@@ -72,7 +77,7 @@ export default function GlobalError({
               style={{
                 padding: "10px 20px",
                 borderRadius: 8,
-                background: "#1e3a8a",
+                background: "#1a2872",
                 color: "#fff",
                 fontSize: 14,
                 fontWeight: 500,

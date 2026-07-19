@@ -20,21 +20,21 @@ export function KpiBar({
 }) {
   if (hasError) {
     return (
-      <p className="mb-4 text-xs text-slate-400">
+      <p className="mb-4 text-xs text-ink-faint">
         KPI の読み込みに失敗したため、進捗は非表示です。
       </p>
     );
   }
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm">
-      <span className="text-xs font-medium text-slate-400">
+    <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-card border border-line bg-white px-4 py-2.5 text-sm">
+      <span className="text-xs font-medium text-ink-faint">
         今四半期（{quarterLabel}）
       </span>
       <span className="flex items-center gap-2">
-        <span className="text-slate-600">商談</span>
-        <span className="font-semibold text-slate-900">
+        <span className="text-ink-soft">商談</span>
+        <span className="font-medium text-ink">
           {meetingsCount}
-          <span className="font-normal text-slate-400">/{targets.meetings}</span>
+          <span className="font-normal text-ink-faint">/{targets.meetings}</span>
         </span>
         <ProgressBar
           value={meetingsCount}
@@ -43,10 +43,10 @@ export function KpiBar({
         />
       </span>
       <span className="flex items-center gap-2">
-        <span className="text-slate-600">契約</span>
-        <span className="font-semibold text-slate-900">
+        <span className="text-ink-soft">契約</span>
+        <span className="font-medium text-ink">
           {contractsCount}
-          <span className="font-normal text-slate-400">/{targets.contracts}</span>
+          <span className="font-normal text-ink-faint">/{targets.contracts}</span>
         </span>
         <ProgressBar
           value={contractsCount}
@@ -56,7 +56,7 @@ export function KpiBar({
       </span>
       <Link
         href="/"
-        className="ml-auto text-xs text-slate-500 transition hover:text-slate-900"
+        className="ml-auto text-xs text-ink-soft transition-colors hover:text-ink"
       >
         ダッシュボード →
       </Link>

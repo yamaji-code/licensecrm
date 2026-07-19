@@ -2,10 +2,19 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createMeeting } from "../actions";
 import { MEETING_FORMAT, SCENE_TAG, type Company, type Deal } from "@/lib/types";
-
-const field =
-  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
-const labelCls = "block text-sm font-medium text-slate-700";
+import {
+  ButtonLink,
+  Card,
+  CardBody,
+  Field,
+  FormActions,
+  Input,
+  PageHeader,
+  PageShell,
+  Select,
+  SubmitButton,
+  Textarea,
+} from "@/components/ui";
 
 type DealOption = Pick<Deal, "id" | "title"> & {
   companies: Pick<Company, "name"> | null;
@@ -42,157 +51,118 @@ export default async function NewMeetingPage({
   const deals = (dealData ?? []) as DealOption[];
 
   return (
-    <div className="px-8 py-10">
-      <div className="mb-6">
-        <Link href="/meetings" className="text-sm text-slate-500 hover:text-slate-900">
-          ← MTG一覧
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">MTGを記録</h1>
-      </div>
+    <PageShell width="narrow">
+      <PageHeader
+        title="MTGを記録"
+        back={
+          <Link href="/meetings" className="text-ink-soft hover:text-brand-700">
+            ← MTG一覧
+          </Link>
+        }
+      />
 
-      <form
-        action={createMeeting}
-        className="space-y-5 rounded-2xl border border-slate-200 bg-white p-6"
-      >
-        <div>
-          <label htmlFor="title" className={labelCls}>
-            MTGタイトル <span className="text-red-500">*</span>
-          </label>
-          <input id="title" name="title" required className={field} />
-        </div>
+      <Card>
+        <CardBody>
+          <form action={createMeeting} className="space-y-5">
+            <Field htmlFor="title" label="MTGタイトル" required>
+              <Input id="title" name="title" required />
+            </Field>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label htmlFor="format" className={labelCls}>
-              区分 <span className="text-red-500">*</span>
-            </label>
-            <select id="format" name="format" required defaultValue="" className={field}>
-              <option value="">（選択してください）</option>
-              {Object.entries(MEETING_FORMAT).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="held_on" className={labelCls}>
-              実施日 <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="held_on"
-              name="held_on"
-              type="date"
-              required
-              defaultValue={todayJst()}
-              className={field}
-            />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="deal_id" className={labelCls}>
-            関連する案件 <span className="font-normal text-slate-400">任意</span>
-          </label>
-          <select
-            id="deal_id"
-            name="deal_id"
-            defaultValue={presetDealId}
-            className={field}
-          >
-            <option value="">（なし）</option>
-            {deals.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.companies?.name ? `${d.companies.name} / ${d.title}` : d.title}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="company_id" className={labelCls}>
-            関連する取引先 <span className="font-normal text-slate-400">任意</span>
-          </label>
-          <select
-            id="company_id"
-            name="company_id"
-            defaultValue={presetCompanyId}
-            className={field}
-          >
-            <option value="">（なし）</option>
-            {companies.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="attendees" className={labelCls}>
-            参加者
-          </label>
-          <input id="attendees" name="attendees" className={field} />
-        </div>
-
-        <div>
-          <label htmlFor="summary" className={labelCls}>
-            要旨
-          </label>
-          <textarea id="summary" name="summary" rows={4} className={field} />
-        </div>
-
-        <div className="space-y-4 border-t border-slate-100 pt-5">
-          <div>
-            <p className="text-sm font-medium text-slate-700">
-              困りごと <span className="font-normal text-slate-400">任意・最大3件</span>
-            </p>
-            <p className="mt-0.5 text-xs text-slate-400">
-              入力すると山路確認キューへ自動登録されます。
-            </p>
-          </div>
-          {PROBLEM_ROWS.map((i) => (
-            <div key={i} className="grid gap-3 sm:grid-cols-[160px_1fr]">
-              <div>
-                <label htmlFor={`scene_tag_${i}`} className={labelCls}>
-                  場面タグ
-                </label>
-                <select
-                  id={`scene_tag_${i}`}
-                  name={`scene_tag_${i}`}
-                  defaultValue=""
-                  className={field}
-                >
-                  <option value="">（未選択）</option>
-                  {Object.entries(SCENE_TAG).map(([value, label]) => (
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field htmlFor="format" label="区分" required>
+                <Select id="format" name="format" required defaultValue="">
+                  <option value="">（選択してください）</option>
+                  {Object.entries(MEETING_FORMAT).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
                     </option>
                   ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor={`problem_${i}`} className={labelCls}>
-                  内容
-                </label>
-                <input id={`problem_${i}`} name={`problem_${i}`} className={field} />
-              </div>
+                </Select>
+              </Field>
+              <Field htmlFor="held_on" label="実施日" required>
+                <Input
+                  id="held_on"
+                  name="held_on"
+                  type="date"
+                  required
+                  defaultValue={todayJst()}
+                />
+              </Field>
             </div>
-          ))}
-        </div>
 
-        <div className="flex items-center gap-3 pt-2">
-          <button
-            type="submit"
-            className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
-          >
-            登録する
-          </button>
-          <Link href="/meetings" className="text-sm text-slate-500 hover:text-slate-900">
-            キャンセル
-          </Link>
-        </div>
-      </form>
-    </div>
+            <Field htmlFor="deal_id" label="関連する案件">
+              <Select id="deal_id" name="deal_id" defaultValue={presetDealId}>
+                <option value="">（なし）</option>
+                {deals.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.companies?.name ? `${d.companies.name} / ${d.title}` : d.title}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field htmlFor="company_id" label="関連する取引先">
+              <Select id="company_id" name="company_id" defaultValue={presetCompanyId}>
+                <option value="">（なし）</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field htmlFor="attendees" label="参加者">
+              <Input id="attendees" name="attendees" />
+            </Field>
+
+            <Field htmlFor="summary" label="要旨">
+              <Textarea id="summary" name="summary" rows={4} />
+            </Field>
+
+            {/* 困りごとは3行1組の入力グループ。単独のラベルではなくグループ見出しなので
+                fieldset + legend で束ねる（読み上げ時にどの入力の話かが分かるようにする） */}
+            <div className="border-t border-line pt-5">
+              <fieldset>
+                <legend className="text-sm font-medium text-ink">困りごと</legend>
+                <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
+                  任意・最大3件。入力すると山路確認キューへ自動登録されます。
+                </p>
+                <div className="mt-4 space-y-4">
+                  {PROBLEM_ROWS.map((i) => (
+                    <div key={i} className="grid gap-3 sm:grid-cols-[160px_1fr]">
+                      <Field htmlFor={`scene_tag_${i}`} label="場面タグ">
+                        <Select
+                          id={`scene_tag_${i}`}
+                          name={`scene_tag_${i}`}
+                          defaultValue=""
+                        >
+                          <option value="">（未選択）</option>
+                          {Object.entries(SCENE_TAG).map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </Select>
+                      </Field>
+                      <Field htmlFor={`problem_${i}`} label="内容">
+                        <Input id={`problem_${i}`} name={`problem_${i}`} />
+                      </Field>
+                    </div>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+
+            <FormActions>
+              <SubmitButton pendingLabel="登録中…">登録する</SubmitButton>
+              <ButtonLink href="/meetings" variant="ghost">
+                キャンセル
+              </ButtonLink>
+            </FormActions>
+          </form>
+        </CardBody>
+      </Card>
+    </PageShell>
   );
 }

@@ -6,6 +6,9 @@
  * - 配色の規律は SEKAI STAY Visual Guide に準拠:
  *   柔らかい面 / チャコール文字 / 単一アクセント＋ティント / 細い罫線 / 装飾最小
  *   比率の目安 = 白60% グレー25% 濃色5% アクセント10%
+ *
+ * ここに無い値を各ページで直書きしないこと。
+ * UI部品は src/components/ui/ を使う（クラス直書きの再発を防ぐため）。
  */
 @theme {
   --color-brand-50: #eef1fb;
@@ -22,13 +25,74 @@
   /* 面・文字 */
   --color-surface: #f6f7fb;
   --color-ink: #1f2430;
+  /* 本文より一段落とす文字色。text-slate-500 の直書きを置き換える */
+  --color-ink-soft: #5b6478;
+  --color-ink-faint: #858da1;
+  /* 罫線。細く薄く（装飾最小の規律） */
+  --color-line: #e3e6ee;
+
+  /* 状態色。用途を固定して「赤の乱発」を防ぐ:
+   * danger = 期限切れ・破壊的操作のみ / warn = 注意喚起 / ok = 完了・達成 */
+  --color-danger: #c0332b;
+  --color-danger-bg: #fdf1f0;
+  --color-warn: #9a6100;
+  --color-warn-bg: #fdf6e8;
+  --color-ok: #1f7a53;
+  --color-ok-bg: #eef8f3;
 
   /* 日本語主体のツールなので和文フォントを主に置く */
   --font-sans: var(--font-noto-sans-jp), system-ui, -apple-system, sans-serif;
+
+  /* 角丸・影。カード=10px / 部品=8px に統一し、影は1段階だけ持つ */
+  --radius-card: 10px;
+  --shadow-card: 0 1px 2px rgb(16 24 48 / 0.05);
+  --shadow-pop: 0 4px 16px rgb(16 24 48 / 0.10);
 }
 
 body {
   background: var(--color-surface);
   color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+/*
+ * フォーカスリング。キーボード操作時だけ出す（マウス操作では出さない）。
+ * 各部品で ring クラスを直書きせず、ここで一括して担保する。
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 和文の折り返し。長い社名・案件名が単語途中で不自然に切れるのを防ぐ */
+body {
+  word-break: normal;
+  overflow-wrap: anywhere;
+  line-break: strict;
+}
+
+/* スクリーンリーダー専用テキスト */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* 動きを減らす設定の利用者には遷移を無効化する */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

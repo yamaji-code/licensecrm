@@ -5,6 +5,21 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createReferral, updatePartner } from "../actions";
 import {
+  ButtonLink,
+  Card,
+  CardBody,
+  CardHeader,
+  EmptyState,
+  Field,
+  FormActions,
+  Input,
+  PageHeader,
+  PageShell,
+  Select,
+  SubmitButton,
+  Textarea,
+} from "@/components/ui";
+import {
   DEAL_CHANNEL,
   DEAL_STAGE,
   PARTNER_TYPE,
@@ -14,10 +29,6 @@ import {
   type Partner,
   type Referral,
 } from "@/lib/types";
-
-const field =
-  "mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500";
-const labelCls = "block text-sm font-medium text-slate-700";
 
 type DealRow = Deal & { companies: Pick<Company, "name"> | null };
 
@@ -82,310 +93,275 @@ export default async function PartnerDetailPage({
   const dealOptions = (dealOptionData ?? []) as DealOption[];
 
   return (
-    <div className="px-8 py-10">
-      <div className="mb-6">
-        <Link href="/partners" className="text-sm text-slate-500 hover:text-slate-900">
-          ← パートナー一覧
-        </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold text-slate-900">{partner.name}</h1>
+    <PageShell>
+      <PageHeader
+        title={partner.name}
+        meta={
           <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
               PARTNER_TYPE_STYLE[partner.partner_type]
             }`}
           >
             {PARTNER_TYPE[partner.partner_type]}
           </span>
-        </div>
-        {partner.name_kana && (
-          <p className="mt-1 text-sm text-slate-400">{partner.name_kana}</p>
-        )}
+        }
+        description={partner.name_kana ?? undefined}
+        back={
+          <Link
+            href="/partners"
+            className="text-ink-soft transition-colors hover:text-brand-700"
+          >
+            ← パートナー一覧
+          </Link>
+        }
+      />
+
+      <div className="space-y-6">
+        {/* 基本情報（編集可） */}
+        <Card>
+          <CardHeader title="基本情報" />
+          <CardBody>
+            <form action={updatePartner} className="space-y-5">
+              <input type="hidden" name="id" value={partner.id} />
+
+              <Field htmlFor="name" label="パートナー名" required>
+                <Input id="name" name="name" required defaultValue={partner.name} />
+              </Field>
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field htmlFor="name_kana" label="パートナー名（かな）">
+                  <Input
+                    id="name_kana"
+                    name="name_kana"
+                    defaultValue={partner.name_kana ?? ""}
+                  />
+                </Field>
+                <Field htmlFor="partner_type" label="種別">
+                  <Select
+                    id="partner_type"
+                    name="partner_type"
+                    defaultValue={partner.partner_type}
+                  >
+                    {Object.entries(PARTNER_TYPE).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field htmlFor="contact_name" label="窓口担当者名">
+                  <Input
+                    id="contact_name"
+                    name="contact_name"
+                    defaultValue={partner.contact_name ?? ""}
+                  />
+                </Field>
+                <Field htmlFor="phone" label="電話番号">
+                  <Input id="phone" name="phone" defaultValue={partner.phone ?? ""} />
+                </Field>
+              </div>
+
+              <Field htmlFor="email" label="メール">
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  defaultValue={partner.email ?? ""}
+                />
+              </Field>
+
+              <Field htmlFor="note" label="メモ">
+                <Textarea
+                  id="note"
+                  name="note"
+                  rows={3}
+                  defaultValue={partner.note ?? ""}
+                />
+              </Field>
+
+              <FormActions>
+                <SubmitButton pendingLabel="更新中…">更新する</SubmitButton>
+              </FormActions>
+            </form>
+          </CardBody>
+        </Card>
+
+        {/* 紐づく案件 */}
+        <Card>
+          <CardHeader title={`紐づく案件 ${deals.length} 件`} />
+          {deals.length > 0 ? (
+            <CardBody>
+              <ul className="divide-y divide-line">
+                {deals.map((d) => (
+                  <li
+                    key={d.id}
+                    className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm first:pt-0 last:pb-0"
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        href={`/deals/${d.id}`}
+                        className="font-medium text-ink hover:text-brand-700 hover:underline"
+                      >
+                        {d.title}
+                      </Link>
+                      <p className="text-xs text-ink-faint">
+                        <Link
+                          href={`/companies/${d.company_id}`}
+                          className="hover:text-brand-700 hover:underline"
+                        >
+                          {d.companies?.name ?? "—"}
+                        </Link>
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                          STAGE_BADGE_STYLE[d.stage]
+                        }`}
+                      >
+                        {DEAL_STAGE[d.stage]}
+                      </span>
+                      <span className="text-xs text-ink-faint">
+                        {DEAL_CHANNEL[d.channel]}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </CardBody>
+          ) : (
+            <EmptyState
+              title="まだ紐づく案件がありません"
+              description="このパートナーが関わる案件を登録すると、紹介経由の成約率に反映されます。"
+              action={
+                <ButtonLink href="/deals/new" size="sm">
+                  案件を登録
+                </ButtonLink>
+              }
+            />
+          )}
+        </Card>
+
+        {/* 紹介記録一覧（received / given 両方向） */}
+        <Card>
+          <CardHeader title={`紹介記録 ${referrals.length} 件`} />
+          {referrals.length > 0 ? (
+            <CardBody>
+              <ul className="divide-y divide-line">
+                {referrals.map((r) => (
+                  <li key={r.id} className="py-3 text-sm first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                          REFERRAL_DIRECTION_STYLE[r.direction]
+                        }`}
+                      >
+                        {REFERRAL_DIRECTION[r.direction]}
+                      </span>
+                      <span className="text-xs text-ink-faint">{r.occurred_on}</span>
+                      {r.deal_id && (
+                        <Link
+                          href={`/deals/${r.deal_id}`}
+                          className="font-medium text-ink hover:text-brand-700 hover:underline"
+                        >
+                          {r.deals?.title ?? "案件"}
+                        </Link>
+                      )}
+                      {r.company_id && !r.deal_id && (
+                        <Link
+                          href={`/companies/${r.company_id}`}
+                          className="font-medium text-ink hover:text-brand-700 hover:underline"
+                        >
+                          {r.companies?.name ?? "取引先"}
+                        </Link>
+                      )}
+                    </div>
+                    {r.note && <p className="mt-1 text-xs text-ink-soft">{r.note}</p>}
+                  </li>
+                ))}
+              </ul>
+            </CardBody>
+          ) : (
+            <EmptyState
+              title="まだ紹介記録がありません"
+              description="紹介された・紹介した実績を残すと、このパートナーの貢献度を数字で追えます。"
+              action={
+                <ButtonLink href="#referral-form" size="sm">
+                  最初の紹介記録を追加
+                </ButtonLink>
+              }
+            />
+          )}
+        </Card>
+
+        {/* 紹介記録の追加フォーム */}
+        <Card>
+          <div id="referral-form" className="scroll-mt-4">
+            <CardHeader title="紹介記録を追加" />
+          </div>
+          <CardBody>
+            <form action={createReferral} className="space-y-5">
+              <input type="hidden" name="partner_id" value={partner.id} />
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field htmlFor="direction" label="方向" required>
+                  <Select id="direction" name="direction" required defaultValue="">
+                    <option value="">（選択してください）</option>
+                    {Object.entries(REFERRAL_DIRECTION).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field htmlFor="occurred_on" label="発生日">
+                  <Input
+                    id="occurred_on"
+                    name="occurred_on"
+                    type="date"
+                    defaultValue={todayJst()}
+                  />
+                </Field>
+              </div>
+
+              <Field htmlFor="deal_id" label="関連する案件">
+                <Select id="deal_id" name="deal_id" defaultValue="">
+                  <option value="">（なし）</option>
+                  {dealOptions.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.companies?.name ? `${d.companies.name} / ${d.title}` : d.title}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field htmlFor="company_id" label="関連する取引先">
+                <Select id="company_id" name="company_id" defaultValue="">
+                  <option value="">（なし）</option>
+                  {companyOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              {/* id は基本情報フォームの note と重複させない（label の紐づけが壊れるため）。
+                  送信キーになる name は変更しない */}
+              <Field htmlFor="referral_note" label="メモ">
+                <Textarea id="referral_note" name="note" rows={3} />
+              </Field>
+
+              <FormActions>
+                <SubmitButton pendingLabel="追加中…">記録を追加</SubmitButton>
+              </FormActions>
+            </form>
+          </CardBody>
+        </Card>
       </div>
-
-      {/* 基本情報（編集可） */}
-      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 text-sm font-medium text-slate-500">基本情報</h2>
-        <form action={updatePartner} className="space-y-5">
-          <input type="hidden" name="id" value={partner.id} />
-
-          <div>
-            <label htmlFor="name" className={labelCls}>
-              パートナー名 <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="name"
-              name="name"
-              required
-              defaultValue={partner.name}
-              className={field}
-            />
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <label htmlFor="name_kana" className={labelCls}>
-                パートナー名（かな）
-              </label>
-              <input
-                id="name_kana"
-                name="name_kana"
-                defaultValue={partner.name_kana ?? ""}
-                className={field}
-              />
-            </div>
-            <div>
-              <label htmlFor="partner_type" className={labelCls}>
-                種別
-              </label>
-              <select
-                id="partner_type"
-                name="partner_type"
-                defaultValue={partner.partner_type}
-                className={field}
-              >
-                {Object.entries(PARTNER_TYPE).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <label htmlFor="contact_name" className={labelCls}>
-                窓口担当者名
-              </label>
-              <input
-                id="contact_name"
-                name="contact_name"
-                defaultValue={partner.contact_name ?? ""}
-                className={field}
-              />
-            </div>
-            <div>
-              <label htmlFor="phone" className={labelCls}>
-                電話番号
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                defaultValue={partner.phone ?? ""}
-                className={field}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="email" className={labelCls}>
-              メール
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              defaultValue={partner.email ?? ""}
-              className={field}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="note" className={labelCls}>
-              メモ
-            </label>
-            <textarea
-              id="note"
-              name="note"
-              rows={3}
-              defaultValue={partner.note ?? ""}
-              className={field}
-            />
-          </div>
-
-          <div className="pt-2">
-            <button
-              type="submit"
-              className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
-            >
-              更新する
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {/* 紐づく案件 */}
-      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 text-sm font-medium text-slate-500">
-          紐づく案件 {deals.length} 件
-        </h2>
-        {deals.length > 0 ? (
-          <ul className="divide-y divide-slate-100">
-            {deals.map((d) => (
-              <li
-                key={d.id}
-                className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"
-              >
-                <div>
-                  <Link
-                    href={`/deals/${d.id}`}
-                    className="font-medium text-slate-900 hover:underline"
-                  >
-                    {d.title}
-                  </Link>
-                  <p className="text-xs text-slate-400">
-                    <Link href={`/companies/${d.company_id}`} className="hover:underline">
-                      {d.companies?.name ?? "—"}
-                    </Link>
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      STAGE_BADGE_STYLE[d.stage]
-                    }`}
-                  >
-                    {DEAL_STAGE[d.stage]}
-                  </span>
-                  <span className="text-xs text-slate-400">{DEAL_CHANNEL[d.channel]}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="py-6 text-center text-sm text-slate-400">
-            紐づく案件はまだありません。
-          </p>
-        )}
-      </section>
-
-      {/* 紹介記録一覧（received / given 両方向） */}
-      <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 text-sm font-medium text-slate-500">
-          紹介記録 {referrals.length} 件
-        </h2>
-        {referrals.length > 0 ? (
-          <ul className="divide-y divide-slate-100">
-            {referrals.map((r) => (
-              <li key={r.id} className="py-3 text-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      REFERRAL_DIRECTION_STYLE[r.direction]
-                    }`}
-                  >
-                    {REFERRAL_DIRECTION[r.direction]}
-                  </span>
-                  <span className="text-xs text-slate-400">{r.occurred_on}</span>
-                  {r.deal_id && (
-                    <Link
-                      href={`/deals/${r.deal_id}`}
-                      className="font-medium text-slate-900 hover:underline"
-                    >
-                      {r.deals?.title ?? "案件"}
-                    </Link>
-                  )}
-                  {r.company_id && !r.deal_id && (
-                    <Link
-                      href={`/companies/${r.company_id}`}
-                      className="font-medium text-slate-900 hover:underline"
-                    >
-                      {r.companies?.name ?? "取引先"}
-                    </Link>
-                  )}
-                </div>
-                {r.note && <p className="mt-1 text-xs text-slate-500">{r.note}</p>}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="py-6 text-center text-sm text-slate-400">
-            紹介記録はまだありません。
-          </p>
-        )}
-      </section>
-
-      {/* 紹介記録の追加フォーム */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="mb-4 text-sm font-medium text-slate-500">紹介記録を追加</h2>
-        <form action={createReferral} className="space-y-5">
-          <input type="hidden" name="partner_id" value={partner.id} />
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <label htmlFor="direction" className={labelCls}>
-                方向 <span className="text-red-500">*</span>
-              </label>
-              <select id="direction" name="direction" required defaultValue="" className={field}>
-                <option value="">（選択してください）</option>
-                {Object.entries(REFERRAL_DIRECTION).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="occurred_on" className={labelCls}>
-                発生日
-              </label>
-              <input
-                id="occurred_on"
-                name="occurred_on"
-                type="date"
-                defaultValue={todayJst()}
-                className={field}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="deal_id" className={labelCls}>
-              関連する案件{" "}
-              <span className="font-normal text-slate-400">任意</span>
-            </label>
-            <select id="deal_id" name="deal_id" defaultValue="" className={field}>
-              <option value="">（なし）</option>
-              {dealOptions.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.companies?.name ? `${d.companies.name} / ${d.title}` : d.title}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="company_id" className={labelCls}>
-              関連する取引先{" "}
-              <span className="font-normal text-slate-400">任意</span>
-            </label>
-            <select id="company_id" name="company_id" defaultValue="" className={field}>
-              <option value="">（なし）</option>
-              {companyOptions.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="note" className={labelCls}>
-              メモ
-            </label>
-            <textarea id="note" name="note" rows={3} className={field} />
-          </div>
-
-          <div className="pt-2">
-            <button
-              type="submit"
-              className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
-            >
-              記録を追加
-            </button>
-          </div>
-        </form>
-      </section>
-    </div>
+    </PageShell>
   );
 }

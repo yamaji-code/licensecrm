@@ -1,16 +1,63 @@
 import Link from "next/link";
+import { MEETING_FORMAT_STYLE } from "@/components/badges";
 import { createClient } from "@/lib/supabase/server";
 import { MEETING_FORMAT, type Company, type Deal, type Meeting } from "@/lib/types";
-
-const FORMAT_STYLE: Record<string, string> = {
-  online: "bg-blue-100 text-blue-700",
-  offline: "bg-emerald-100 text-emerald-700",
-};
+import {
+  ButtonLink,
+  Card,
+  EmptyState,
+  LoadErrorBanner,
+  PageHeader,
+  PageShell,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+  Table,
+} from "@/components/ui";
 
 type MeetingRow = Meeting & {
   deals: Pick<Deal, "title"> | null;
   companies: Pick<Company, "name"> | null;
 };
+
+function FormatBadge({ format }: { format: MeetingRow["format"] }) {
+  return (
+    <span
+      className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+        MEETING_FORMAT_STYLE[format]
+      }`}
+    >
+      {MEETING_FORMAT[format]}
+    </span>
+  );
+}
+
+/** 関連先（案件優先・なければ取引先）。表とモバイルカードで同じ出し方にする */
+function RelatedLink({ meeting }: { meeting: MeetingRow }) {
+  if (meeting.deal_id) {
+    return (
+      <Link
+        href={`/deals/${meeting.deal_id}`}
+        className="hover:text-brand-700 hover:underline"
+      >
+        {meeting.deals?.title ?? "案件"}
+      </Link>
+    );
+  }
+  if (meeting.company_id) {
+    return (
+      <Link
+        href={`/companies/${meeting.company_id}`}
+        className="hover:text-brand-700 hover:underline"
+      >
+        {meeting.companies?.name ?? "取引先"}
+      </Link>
+    );
+  }
+  return <>—</>;
+}
 
 export default async function MeetingsPage() {
   const supabase = await createClient();
@@ -22,88 +69,99 @@ export default async function MeetingsPage() {
   const meetings = (data ?? []) as MeetingRow[];
 
   return (
-    <div className="px-8 py-10">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">MTG</h1>
-          <p className="mt-1 text-sm text-slate-500">{meetings.length} 件</p>
-        </div>
-        <Link
-          href="/meetings/new"
-          className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-800"
-        >
-          + MTGを記録
-        </Link>
-      </header>
+    <PageShell>
+      <PageHeader
+        title="MTG"
+        meta={`${meetings.length} 件`}
+        actions={
+          <ButtonLink href="/meetings/new" variant="primary">
+            MTGを記録
+          </ButtonLink>
+        }
+      />
 
       {error && (
-        <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-          読み込みエラー: {error.message}（マイグレーション未実行の可能性があります）
-        </p>
+        <div className="mb-4">
+          <LoadErrorBanner message={error.message} />
+        </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        {meetings.length > 0 ? (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                <th className="px-5 py-3 font-medium">実施日</th>
-                <th className="px-5 py-3 font-medium">タイトル</th>
-                <th className="px-5 py-3 font-medium">区分</th>
-                <th className="px-5 py-3 font-medium">関連</th>
-                <th className="px-5 py-3 font-medium">要旨</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {meetings.map((m) => (
-                <tr key={m.id} className="transition hover:bg-slate-50">
-                  <td className="whitespace-nowrap px-5 py-3 text-slate-600">
-                    {m.held_on}
-                  </td>
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-slate-900">{m.title}</p>
-                    {m.attendees && (
-                      <p className="text-xs text-slate-400">{m.attendees}</p>
-                    )}
-                  </td>
-                  <td className="px-5 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        FORMAT_STYLE[m.format]
-                      }`}
-                    >
-                      {MEETING_FORMAT[m.format]}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-slate-600">
-                    {m.deal_id ? (
-                      <Link href={`/deals/${m.deal_id}`} className="hover:underline">
-                        {m.deals?.title ?? "案件"}
-                      </Link>
-                    ) : m.company_id ? (
-                      <Link
-                        href={`/companies/${m.company_id}`}
-                        className="hover:underline"
-                      >
-                        {m.companies?.name ?? "取引先"}
-                      </Link>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="max-w-xs truncate px-5 py-3 text-slate-600">
-                    {m.summary ?? "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="px-5 py-10 text-center text-sm text-slate-400">
-            まだMTGが登録されていません。「MTGを記録」から登録してください。
-          </p>
-        )}
-      </div>
-    </div>
+      {meetings.length === 0 ? (
+        <Card>
+          <EmptyState
+            title="まだMTGが記録されていません"
+            description="商談や打ち合わせを記録すると、案件・取引先に紐づけて経緯を追えるようになります。"
+            action={
+              <ButtonLink href="/meetings/new" variant="primary" size="sm">
+                最初のMTGを記録
+              </ButtonLink>
+            }
+          />
+        </Card>
+      ) : (
+        <>
+          {/* 広い画面は表。和文は列が潰れると縦積みになって読めなくなるため、
+              狭い画面ではカードに落とす（表の横スクロールより読みやすい） */}
+          <Card className="hidden sm:block">
+            <Table caption="MTGの一覧">
+              <THead>
+                <TR className="hover:bg-transparent">
+                  <TH>実施日</TH>
+                  <TH>タイトル</TH>
+                  <TH>区分</TH>
+                  <TH>関連</TH>
+                  <TH>要旨</TH>
+                </TR>
+              </THead>
+              <TBody>
+                {meetings.map((m) => (
+                  <TR key={m.id}>
+                    <TD className="whitespace-nowrap text-ink-soft">{m.held_on}</TD>
+                    <TD>
+                      <p className="font-medium text-ink">{m.title}</p>
+                      {m.attendees && (
+                        <p className="text-xs text-ink-faint">{m.attendees}</p>
+                      )}
+                    </TD>
+                    <TD>
+                      <FormatBadge format={m.format} />
+                    </TD>
+                    <TD className="text-ink-soft">
+                      <RelatedLink meeting={m} />
+                    </TD>
+                    <TD className="max-w-xs truncate text-ink-soft">
+                      {m.summary ?? "—"}
+                    </TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </Card>
+
+          <ul className="space-y-2 sm:hidden">
+            {meetings.map((m) => (
+              <li
+                key={m.id}
+                className="rounded-card border border-line bg-white px-4 py-3 shadow-card"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 font-medium text-ink">{m.title}</p>
+                  <FormatBadge format={m.format} />
+                </div>
+                {m.attendees && (
+                  <p className="mt-0.5 text-xs text-ink-faint">{m.attendees}</p>
+                )}
+                <p className="mt-1 text-xs text-ink-soft">
+                  {m.held_on} ・ <RelatedLink meeting={m} />
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-ink-soft">
+                  {m.summary ?? "—"}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </PageShell>
   );
 }
