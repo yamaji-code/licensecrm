@@ -59,7 +59,9 @@ export async function createCompany(formData: FormData) {
 }
 
 // 企業規模（大手/中小）の設定。リードタイムの規模別計測に使う。
-// 判定の目安: 直営・FC合計10店舗以上 or 従業員100名以上 or 上場（系列含む）→ 大手
+// 判定基準: 国内店舗数 30店舗以上 → 大手（2026-07-20 山路さん確定・確認シートQ3）。
+// 旧基準（直営FC合計10店舗以上 or 従業員100名以上 or 上場）でAIが一次分類した既存92社は
+// 新基準で付け直しが必要。画面上で人が修正する運用。
 export async function updateCompanySize(formData: FormData) {
   const id = str(formData.get("id"));
   if (!id) {

@@ -104,7 +104,7 @@ export default async function CompanyDetailPage({
                 <Field
                   htmlFor="company_size"
                   label="企業規模"
-                  hint="目安: 10店舗以上・従業員100名以上・上場系は大手"
+                  hint="国内店舗数 30店舗以上は大手（2026-07-20 山路さん確定）"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <Select
