@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { TASK_PRIORITY_STYLE, TASK_STATUS_STYLE } from "@/components/badges";
+import {
+  TASK_PRIORITY_DOT,
+  TASK_PRIORITY_STYLE,
+  TASK_STATUS_STYLE,
+} from "@/components/badges";
 import { createClient } from "@/lib/supabase/server";
 import {
   addDays,
@@ -213,7 +217,9 @@ function TaskDetail({
   );
 }
 
-// カレンダー表示（日/週/月）のセル内に置く、1件ぶんの小さな行。タップで全項目をモーダル表示する。
+// カレンダー表示（日/週/月）のセル内に置く、1件ぶんの小さな行。
+// 案件に紐づくタスクはタップで案件ページへ（カレンダーからそのまま案件の全体像を見に行きたいため）、
+// 紐づかないタスクはタップでモーダル編集にする。
 function TaskChip({
   task,
   action,
@@ -223,18 +229,25 @@ function TaskChip({
 }) {
   const done = task.status === "done";
   const companyName = companyNameOf(task);
+  const titleClassName = `block w-full truncate text-left text-xs hover:text-brand-700 hover:underline ${
+    done ? "text-ink-faint line-through" : "text-ink"
+  }`;
   return (
     <li className="flex items-center gap-1.5 rounded-md border border-line bg-white px-1.5 py-1">
       <DoneToggle task={task} action={action} />
       <div className="min-w-0 flex-1">
-        <TaskModalTrigger
-          trigger={task.title}
-          triggerClassName={`block w-full truncate text-left text-xs hover:text-brand-700 hover:underline ${
-            done ? "text-ink-faint line-through" : "text-ink"
-          }`}
-        >
-          <TaskDetail task={task} action={action} />
-        </TaskModalTrigger>
+        {task.deal_id ? (
+          <Link href={`/deals/${task.deal_id}`} className={titleClassName}>
+            {task.title}
+          </Link>
+        ) : (
+          <TaskModalTrigger
+            trigger={task.title}
+            triggerClassName={titleClassName}
+          >
+            <TaskDetail task={task} action={action} />
+          </TaskModalTrigger>
+        )}
         {companyName && (
           <p className="truncate text-[9px] text-ink-faint">{companyName}</p>
         )}
@@ -695,45 +708,65 @@ export default async function TasksPage({
             {calendarDays.map((d) => {
               const dayTasks = tasksByDate.get(d) ?? [];
               const inMonth = d.slice(0, 7) === anchorDate.slice(0, 7);
-              const shown = dayTasks.slice(0, 3);
-              const overflow = dayTasks.length - shown.length;
               return (
                 <div
                   key={d}
-                  className={`min-h-24 rounded-md border p-1 sm:p-1.5 ${
+                  className={`flex min-h-28 flex-col rounded-md border p-1 sm:p-1.5 ${
                     d === today
                       ? "border-brand-300 bg-brand-50"
                       : "border-line"
                   } ${inMonth ? "bg-white" : "bg-surface"}`}
                 >
-                  <Link
-                    href={`/tasks?range=day&date=${d}`}
-                    className={`block text-xs font-medium hover:text-brand-700 hover:underline ${
-                      inMonth ? "text-ink" : "text-ink-faint"
-                    }`}
-                  >
-                    {Number(d.slice(8, 10))}
-                  </Link>
-                  <ul className="mt-1 space-y-1">
-                    {shown.map((t) => (
-                      <li key={t.id}>
-                        <TaskModalTrigger
-                          trigger={t.title}
-                          triggerClassName={`block w-full truncate text-left text-[11px] hover:underline ${TASK_PRIORITY_STYLE[t.priority]}`}
-                        >
-                          <TaskDetail task={t} action={markDone} />
-                        </TaskModalTrigger>
-                      </li>
-                    ))}
-                  </ul>
-                  {overflow > 0 && (
+                  <div className="flex items-center justify-between gap-1">
                     <Link
                       href={`/tasks?range=day&date=${d}`}
-                      className="mt-1 block text-[11px] text-ink-faint hover:text-brand-700 hover:underline"
+                      className={`text-xs font-medium hover:text-brand-700 hover:underline ${
+                        inMonth ? "text-ink" : "text-ink-faint"
+                      }`}
                     >
-                      +{overflow}件
+                      {Number(d.slice(8, 10))}
                     </Link>
-                  )}
+                    {dayTasks.length > 0 && (
+                      <span className="text-[10px] text-ink-faint">
+                        {dayTasks.length}件
+                      </span>
+                    )}
+                  </div>
+                  {/* 「+N件」で隠さず、セル内スクロールで全件見られるようにする。
+                      案件に紐づくタスクは案件ページへ、紐づかないタスクはモーダル編集へ */}
+                  <ul className="mt-1 max-h-40 space-y-0.5 overflow-y-auto">
+                    {dayTasks.map((t) => {
+                      const dot = (
+                        <span
+                          aria-hidden="true"
+                          className={`h-1 w-1 shrink-0 rounded-full ${TASK_PRIORITY_DOT[t.priority]}`}
+                        />
+                      );
+                      const rowClassName = `flex w-full items-center gap-1 text-left text-[9px] leading-tight hover:underline ${TASK_PRIORITY_STYLE[t.priority]}`;
+                      return (
+                        <li key={t.id}>
+                          {t.deal_id ? (
+                            <Link href={`/deals/${t.deal_id}`} className={rowClassName}>
+                              {dot}
+                              <span className="truncate">{t.title}</span>
+                            </Link>
+                          ) : (
+                            <TaskModalTrigger
+                              trigger={
+                                <span className="flex items-center gap-1">
+                                  {dot}
+                                  <span className="truncate">{t.title}</span>
+                                </span>
+                              }
+                              triggerClassName={rowClassName}
+                            >
+                              <TaskDetail task={t} action={markDone} />
+                            </TaskModalTrigger>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               );
             })}

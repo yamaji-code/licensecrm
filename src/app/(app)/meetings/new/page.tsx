@@ -2,9 +2,13 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createMeeting } from "../actions";
 import { MtgLogEditor } from "../mtg-log-editor";
+import { quickAddNextAction } from "../../tasks/actions";
+import { jstDateString } from "@/lib/date";
 import {
   MEETING_FORMAT,
   SCENE_TAG,
+  TASK_PRIORITY,
+  TASK_STATUS,
   type Company,
   type Deal,
   type MeetingSnippet,
@@ -13,6 +17,7 @@ import {
   ButtonLink,
   Card,
   CardBody,
+  CardHeader,
   Field,
   FormActions,
   Input,
@@ -20,6 +25,7 @@ import {
   PageShell,
   Select,
   SubmitButton,
+  Textarea,
 } from "@/components/ui";
 
 type DealOption = Pick<Deal, "id" | "title"> & {
@@ -190,6 +196,63 @@ export default async function NewMeetingPage({
           </form>
         </CardBody>
       </Card>
+
+      {/* MTGログの画面から、このMTGに関するタスク（または案件に紐づけない自分用のタスク）を
+          その場で追加できるようにする。task自体はmeetingとは独立（deal_idのみで管理）なので、
+          MTG本体の保存有無に関わらず単独で登録できる。 */}
+      <div className="mt-6">
+        <Card>
+          <CardHeader title="タスクを追加" />
+          <CardBody>
+            <form action={quickAddNextAction} className="space-y-2">
+              <Field htmlFor="task_deal_id" label="関連付け">
+                <Select id="task_deal_id" name="deal_id" defaultValue={presetDealId}>
+                  <option value="">（なし＝自分のタスク）</option>
+                  {deals.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.companies?.name ? `${d.companies.name} / ${d.title}` : d.title}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <div className="flex items-center gap-2">
+                <Input
+                  name="title"
+                  placeholder="タスクを追記…"
+                  className="flex-1"
+                  required
+                />
+                <SubmitButton size="sm" pendingLabel="追加中…">
+                  追加
+                </SubmitButton>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Select name="priority" defaultValue="medium" className="w-24">
+                  {Object.entries(TASK_PRIORITY).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+                <Select name="status" defaultValue="todo" className="w-28">
+                  {Object.entries(TASK_STATUS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+                <Input
+                  name="due_date"
+                  type="date"
+                  defaultValue={jstDateString(7)}
+                  className="w-40"
+                />
+              </div>
+              <Textarea name="note" placeholder="メモ" rows={2} />
+            </form>
+          </CardBody>
+        </Card>
+      </div>
     </PageShell>
   );
 }
