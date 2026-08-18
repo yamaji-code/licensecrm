@@ -21,6 +21,13 @@ export const TASK_PRIORITY_STYLE: Record<string, string> = {
   high: "text-rose-600",
 };
 
+// カレンダーの月表示など、狭いセル内でタイトルの前に置く優先度の小さな丸印
+export const TASK_PRIORITY_DOT: Record<string, string> = {
+  low: "bg-line",
+  medium: "bg-ink-faint",
+  high: "bg-rose-500",
+};
+
 export const COMPANY_STATUS_STYLE: Record<string, string> = {
   prospect: "bg-surface text-ink-soft",
   negotiating: "bg-amber-50 text-amber-700",
