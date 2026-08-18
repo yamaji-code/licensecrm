@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createMeeting } from "../actions";
 import { MtgLogEditor } from "../mtg-log-editor";
 import { quickAddNextAction } from "../../tasks/actions";
+import { TaskTypeField } from "../../tasks/task-type-field";
 import { jstDateString } from "@/lib/date";
 import {
   MEETING_FORMAT,
@@ -205,16 +206,7 @@ export default async function NewMeetingPage({
           <CardHeader title="タスクを追加" />
           <CardBody>
             <form action={quickAddNextAction} className="space-y-2">
-              <Field htmlFor="task_deal_id" label="関連付け">
-                <Select id="task_deal_id" name="deal_id" defaultValue={presetDealId}>
-                  <option value="">（なし＝自分のタスク）</option>
-                  {deals.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.companies?.name ? `${d.companies.name} / ${d.title}` : d.title}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              <TaskTypeField deals={deals} defaultDealId={presetDealId || null} />
               <div className="flex items-center gap-2">
                 <Input
                   name="title"

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createTask } from "../actions";
+import { TaskTypeField } from "../task-type-field";
 import { TASK_PRIORITY, TASK_STATUS, type Company, type Deal } from "@/lib/types";
 import {
   Banner,
@@ -87,31 +88,14 @@ export default async function NewTaskPage({
                   ))}
                 </Select>
               </Field>
-              {/* 案件に紐づくタスクは期限がないと追えなくなるため、案件指定時のみ必須 */}
-              <Field htmlFor="due_date" label="期限" required={Boolean(presetDealId)}>
-                <Input
-                  id="due_date"
-                  name="due_date"
-                  type="date"
-                  required={Boolean(presetDealId)}
-                />
+              {/* 案件に紐づくタスク（next action）は期限がないと追えなくなるため必須。
+                  サーバー側でも強制するので、種別を切り替えても表示が古いままでも実害はない */}
+              <Field htmlFor="due_date" label="期限" hint="next actionの場合は必須">
+                <Input id="due_date" name="due_date" type="date" />
               </Field>
             </div>
 
-            <Field
-              htmlFor="deal_id"
-              label="関連する案件"
-              hint="選択すると期限の入力が必須になります"
-            >
-              <Select id="deal_id" name="deal_id" defaultValue={presetDealId}>
-                <option value="">（なし）</option>
-                {deals.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.companies?.name ? `${d.companies.name} / ${d.title}` : d.title}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <TaskTypeField deals={deals} defaultDealId={presetDealId || null} />
 
             <Field htmlFor="company_id" label="関連する取引先">
               <Select id="company_id" name="company_id" defaultValue="">

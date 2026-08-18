@@ -17,6 +17,8 @@ import {
   compareTaskPriorityThenDueDate,
   TASK_PRIORITY,
   TASK_STATUS,
+  type Company,
+  type Deal,
   type Task,
 } from "@/lib/types";
 import {
@@ -41,6 +43,11 @@ import {
 } from "@/components/ui";
 import { quickAddNextAction, toggleTaskDone, updateTask } from "./actions";
 import { TaskModalTrigger } from "./task-modal";
+import { TaskTypeField } from "./task-type-field";
+
+type DealOption = Pick<Deal, "id" | "title"> & {
+  companies: Pick<Company, "name"> | null;
+};
 
 // タスクは company_id を直接持たないことが多い（案件のnext actionはdeal_idだけで
 // 作られるため）。表示する取引先名は、直接の company_id が無ければ紐づく案件の
@@ -121,6 +128,20 @@ function StatusBadge({ task }: { task: TaskWithCompany }) {
       }`}
     >
       {TASK_STATUS[task.status]}
+    </span>
+  );
+}
+
+// タスク種別はDBの列ではなく deal_id の有無で表す（next action=案件のタスク／other=それ以外）。
+function TaskKindBadge({ task }: { task: TaskWithCompany }) {
+  const isNextAction = Boolean(task.deal_id);
+  return (
+    <span
+      className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+        isNextAction ? "bg-brand-50 text-brand-700" : "bg-surface text-ink-soft"
+      }`}
+    >
+      {isNextAction ? "next action" : "other task"}
     </span>
   );
 }
@@ -300,6 +321,7 @@ function TaskTable({
                 <span className="sr-only">完了</span>
               </TH>
               <TH>タスク</TH>
+              <TH>種別</TH>
               <TH>優先度</TH>
               <TH>ステータス</TH>
               <TH>期限</TH>
@@ -313,6 +335,9 @@ function TaskTable({
                 </TD>
                 <TD>
                   <TaskTitle task={t} />
+                </TD>
+                <TD>
+                  <TaskKindBadge task={t} />
                 </TD>
                 <TD>
                   <PriorityLabel task={t} />
@@ -341,6 +366,7 @@ function TaskTable({
             <div className="min-w-0 flex-1">
               <TaskTitle task={t} />
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <TaskKindBadge task={t} />
                 <StatusBadge task={t} />
                 <PriorityLabel task={t} />
                 <span className="text-xs text-ink-soft">
@@ -375,6 +401,13 @@ export default async function TasksPage({
   const anchorDate = first(dateParam) || jstDateString();
 
   const supabase = await createClient();
+
+  // ワンタッチ追記でタスク種別（next action/other task）を選べるようにするための案件一覧
+  const { data: dealData } = await supabase
+    .from("deals")
+    .select("*, companies ( name )")
+    .order("created_at", { ascending: false });
+  const deals = (dealData ?? []) as DealOption[];
 
   // カレンダー表示（日/週/月）: 表示期間内の未完了タスク＋期限なしの未完了タスクを取得する。
   // 完了済みはスケジュールの対象外なのでカレンダーには出さない（リスト表示側で確認する）。
@@ -565,7 +598,7 @@ export default async function TasksPage({
                 <div className="flex items-center gap-2">
                   <Input
                     name="title"
-                    placeholder="next actionを追記…"
+                    placeholder="タスクを追記…"
                     className="flex-1"
                     required
                   />
@@ -573,6 +606,7 @@ export default async function TasksPage({
                     追加
                   </SubmitButton>
                 </div>
+                <TaskTypeField deals={deals} />
                 <div className="flex flex-wrap items-center gap-2">
                   <Select name="priority" defaultValue="medium" className="w-24">
                     {Object.entries(TASK_PRIORITY).map(([value, label]) => (
