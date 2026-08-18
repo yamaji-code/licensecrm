@@ -1,18 +1,22 @@
 import Link from "next/link";
 import {
   CLOSED_DEAL_STAGES,
-  DEAL_CHANNEL,
   DEAL_STAGE,
   DEAL_STAGE_ORDER,
-  PB_STATUS,
+  TIER,
   type Deal,
-  type CompanySize,
+  type TaskPriority,
+  type Tier,
 } from "@/lib/types";
 import { advanceDealStage } from "./actions";
 import { Chip } from "@/components/ui";
 
 export type DealWithRelations = Deal & {
-  companies: { name: string; company_size: CompanySize | null } | null;
+  companies: {
+    name: string;
+    target_brand: string | null;
+    tier: Tier | null;
+  } | null;
   genres: { name: string } | null;
 };
 
@@ -21,6 +25,12 @@ export type DealCounts = {
   open: number;
   openRequired: number;
   overdue: number;
+};
+
+export type DealNextAction = {
+  title: string;
+  priority: TaskPriority;
+  due_date: string | null;
 };
 
 /*
@@ -46,20 +56,19 @@ export function displayDealTitle(title: string, companyName?: string | null) {
 }
 
 /*
- * ボードのカード。
- * 密度は「1画面に何件見えるか」を決める最重要要素なので、行数を増やさないこと。
- * comfortable = 3行（案件名 / 属性 / 状態）、compact = 2行。
+ * ボードのカード。案件名（ブランド）・法人名・next action（全件）を見せることを優先し、
+ * 密度より情報量を優先する（サヤカさんの指定）。文字は小さめにして情報量を確保する。
  */
 export function DealCard({
   deal,
   counts,
+  nextActions,
   compact,
-  contractedGenreIds,
 }: {
   deal: DealWithRelations;
   counts: DealCounts;
+  nextActions: DealNextAction[];
   compact: boolean;
-  contractedGenreIds: Set<string>;
 }) {
   const { total, open, openRequired, overdue } = counts;
   const isClosed = CLOSED_DEAL_STAGES.includes(deal.stage);
@@ -74,68 +83,51 @@ export function DealCard({
     : null;
 
   const companyName = deal.companies?.name ?? null;
-  const isLarge = deal.companies?.company_size === "large";
-  const genreName = deal.genres?.name ?? null;
-  const genreContracted =
-    deal.genre_id !== null && contractedGenreIds.has(deal.genre_id);
-  const pbActive =
-    deal.pb_status === "searching" || deal.pb_status === "co_creating";
+  const tier = deal.companies?.tier ?? null;
 
   return (
     <div
       className={[
         "rounded-lg border bg-white shadow-card transition-colors hover:border-brand-200",
-        compact ? "px-2.5 py-2" : "px-3 py-2.5",
+        compact ? "px-3 py-2.5" : "px-3.5 py-3",
         // 期限切れがある案件だけ左の縁で示す。赤はここと読み込み失敗にしか使わない
         overdue > 0 ? "border-line border-l-2 border-l-danger" : "border-line",
       ].join(" ")}
     >
       <Link
         href={`/deals/${deal.id}`}
-        className="block text-[13px] font-medium leading-snug text-ink hover:text-brand-700 hover:underline"
+        className="block text-xs font-medium leading-snug text-ink hover:text-brand-700 hover:underline"
       >
         <span className="line-clamp-2">
           {displayDealTitle(deal.title, companyName)}
         </span>
       </Link>
 
-      {/* 取引先は誰と話す案件かを決める情報なので、チップに幅を奪われて
-          「ビッ…」のように潰れないよう独立した行に置く */}
-      <div className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-soft">
+      {/* 法人名 */}
+      <div className="mt-1 flex items-center gap-1.5 text-[10px] text-ink-soft">
         <span className="min-w-0 flex-1 truncate">
           {companyName ?? "取引先未設定"}
         </span>
-        {isLarge && (
+        {tier && (
           <Chip tone="neutral" className="shrink-0">
-            大手
+            {TIER[tier]}
           </Chip>
         )}
       </div>
 
-      {!compact && (
-        <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-ink-faint">
-          <span className="min-w-0 flex-1 truncate">
-            {DEAL_CHANNEL[deal.channel]}
-          </span>
-          {genreName && (
-            <Chip
-              tone={genreContracted ? "muted" : "neutral"}
-              className="max-w-[60%] shrink-0"
-              title={
-                genreContracted
-                  ? `${genreName}（このジャンルは契約済み・優先度低）`
-                  : genreName
-              }
+      {/* next action: 件数で丸めず全件出す（小さくてよいので見切れさせない・カードの高さは案件ごとに変わってよい） */}
+      {nextActions.length > 0 && (
+        <ul className="mt-1.5 space-y-px border-t border-line pt-1.5">
+          {nextActions.map((t, i) => (
+            <li
+              key={i}
+              className="truncate text-[8px] leading-tight text-ink-soft"
+              title={t.title}
             >
-              {genreContracted ? `済 ${genreName}` : genreName}
-            </Chip>
-          )}
-          {pbActive && deal.pb_status && (
-            <Chip tone="brand" className="shrink-0">
-              {PB_STATUS[deal.pb_status]}
-            </Chip>
-          )}
-        </div>
+              ・{t.title}
+            </li>
+          ))}
+        </ul>
       )}
 
       <div className="mt-2">
@@ -176,7 +168,7 @@ export function DealCard({
             href={`/tasks/new?deal_id=${deal.id}`}
             className="inline-flex items-center rounded-md border border-warn/25 bg-warn-bg px-1.5 py-0.5 text-[11px] font-medium text-warn hover:brightness-95"
           >
-            次アクション未設定
+            next action未設定
           </Link>
         )}
       </div>

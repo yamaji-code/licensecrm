@@ -74,9 +74,14 @@ export default async function MeetingsPage() {
         title="MTG"
         meta={`${meetings.length} 件`}
         actions={
-          <ButtonLink href="/meetings/new" variant="primary">
-            MTGを記録
-          </ButtonLink>
+          <>
+            <ButtonLink href="/meetings/snippets" variant="secondary">
+              よく使う文章
+            </ButtonLink>
+            <ButtonLink href="/meetings/new" variant="primary">
+              MTGを記録
+            </ButtonLink>
+          </>
         }
       />
 
@@ -111,6 +116,7 @@ export default async function MeetingsPage() {
                   <TH>区分</TH>
                   <TH>関連</TH>
                   <TH>要旨</TH>
+                  <TH>&nbsp;</TH>
                 </TR>
               </THead>
               <TBody>
@@ -131,6 +137,14 @@ export default async function MeetingsPage() {
                     </TD>
                     <TD className="max-w-xs truncate text-ink-soft">
                       {m.summary ?? "—"}
+                    </TD>
+                    <TD className="whitespace-nowrap">
+                      <Link
+                        href={`/meetings/${m.id}/edit`}
+                        className="text-brand-700 hover:underline"
+                      >
+                        編集
+                      </Link>
                     </TD>
                   </TR>
                 ))}
@@ -156,6 +170,14 @@ export default async function MeetingsPage() {
                 </p>
                 <p className="mt-1 text-xs leading-relaxed text-ink-soft">
                   {m.summary ?? "—"}
+                </p>
+                <p className="mt-1 text-right text-xs">
+                  <Link
+                    href={`/meetings/${m.id}/edit`}
+                    className="text-brand-700 hover:underline"
+                  >
+                    編集
+                  </Link>
                 </p>
               </li>
             ))}

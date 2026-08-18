@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  COMPANY_SIZE,
   COMPANY_STATUS,
   CONTACT_DECISION_ROLE,
   CONTACT_LEAD_TIME,
-  type CompanySize,
+  TIER,
   type CompanyStatus,
   type ContactDecisionRole,
   type ContactLeadTime,
+  type Tier,
 } from "@/lib/types";
 
 function str(value: FormDataEntryValue | null): string | null {
@@ -35,13 +35,16 @@ export async function createCompany(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const sizeValue = String(formData.get("company_size") ?? "");
+  const tierValue = String(formData.get("tier") ?? "");
 
   const { error } = await supabase.from("companies").insert({
     name,
     name_kana: str(formData.get("name_kana")),
     status: status as CompanyStatus,
-    company_size: sizeValue in COMPANY_SIZE ? (sizeValue as CompanySize) : null,
+    tier: tierValue in TIER ? (tierValue as Tier) : null,
+    target_brand: str(formData.get("target_brand")),
+    lead_source: str(formData.get("lead_source")),
+    parent_company: str(formData.get("parent_company")),
     industry: str(formData.get("industry")),
     phone: str(formData.get("phone")),
     website: str(formData.get("website")),
@@ -58,31 +61,56 @@ export async function createCompany(formData: FormData) {
   redirect("/companies");
 }
 
-// 企業規模（大手/中小）の設定。リードタイムの規模別計測に使う。
-// 判定基準: 国内店舗数 30店舗以上 → 大手（2026-07-20 山路さん確定・確認シートQ3）。
-// 旧基準（直営FC合計10店舗以上 or 従業員100名以上 or 上場）でAIが一次分類した既存92社は
-// 新基準で付け直しが必要。画面上で人が修正する運用。
-export async function updateCompanySize(formData: FormData) {
+// 取引先カード（法人名・ターゲットブランド・tier・法人URL・リード創出・親会社）の更新。
+// 会社詳細ページ・案件詳細ページの両方から呼ぶため、deal_id が渡された時だけその案件も再検証する。
+export async function updateCompanyDetails(formData: FormData) {
   const id = str(formData.get("id"));
   if (!id) {
-    throw new Error("会社IDが不正です。");
+    throw new Error("取引先IDが不正です。");
   }
-  const sizeValue = String(formData.get("company_size") ?? "");
-  const companySize =
-    sizeValue in COMPANY_SIZE ? (sizeValue as CompanySize) : null;
+  const name = str(formData.get("name"));
+  if (!name) {
+    throw new Error("会社名は必須です。");
+  }
+  const tierValue = String(formData.get("tier") ?? "");
+  const targetBrand = str(formData.get("target_brand"));
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("companies")
-    .update({ company_size: companySize })
+    .update({
+      name,
+      tier: tierValue in TIER ? (tierValue as Tier) : null,
+      target_brand: targetBrand,
+      website: str(formData.get("website")),
+      lead_source: str(formData.get("lead_source")),
+      parent_company: str(formData.get("parent_company")),
+    })
     .eq("id", id);
 
   if (error) {
-    throw new Error(`企業規模の更新に失敗しました: ${error.message}`);
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+
+  // 案件名はターゲットブランドと一致させる運用のため、変更されたら
+  // この取引先に紐づく案件の案件名もまとめて更新する（設定が空になった時は上書きしない）。
+  if (targetBrand) {
+    const { error: syncError } = await supabase
+      .from("deals")
+      .update({ title: targetBrand })
+      .eq("company_id", id);
+    if (syncError) {
+      throw new Error(`案件名の同期に失敗しました: ${syncError.message}`);
+    }
   }
 
   revalidatePath(`/companies/${id}`);
   revalidatePath("/companies");
+  revalidatePath("/deals");
+  const dealId = str(formData.get("deal_id"));
+  if (dealId) {
+    revalidatePath(`/deals/${dealId}`);
+  }
 }
 
 export async function createContact(formData: FormData) {

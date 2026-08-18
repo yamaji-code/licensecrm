@@ -225,7 +225,7 @@ export default async function PartnerDetailPage({
                         {DEAL_STAGE[d.stage]}
                       </span>
                       <span className="text-xs text-ink-faint">
-                        {DEAL_CHANNEL[d.channel]}
+                        {d.channel.map((c) => DEAL_CHANNEL[c]).join("・")}
                       </span>
                     </div>
                   </li>

@@ -10,9 +10,6 @@ import { DEAL_STAGE, type DealStage } from "@/lib/types";
 //   契約・ブランド化 → グリーン（獲得済み。SV案内可能=ゴールは一段濃く）
 //   進行外          → グレー（保留）／ローズ（失注）
 export const STAGE_BADGE_STYLE: Record<DealStage, string> = {
-  // リード
-  sourced: "bg-brand-50 text-brand-700",
-  picked: "bg-brand-100 text-brand-800",
   // 営業
   approaching: "bg-brand-100 text-brand-800",
   meeting_set: "bg-brand-100 text-brand-800",
@@ -25,6 +22,7 @@ export const STAGE_BADGE_STYLE: Record<DealStage, string> = {
   // 進行外
   nurturing: "bg-surface text-ink-soft",
   lost: "bg-rose-50 text-rose-700",
+  lost_after_proposal: "bg-rose-50 text-rose-700",
 };
 
 export function StageBadge({

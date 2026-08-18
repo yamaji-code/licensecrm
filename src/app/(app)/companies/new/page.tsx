@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createCompany } from "../actions";
-import { COMPANY_SIZE, COMPANY_STATUS } from "@/lib/types";
+import { COMPANY_STATUS, TIER } from "@/lib/types";
 import {
   ButtonLink,
   Card,
@@ -53,14 +53,10 @@ export default function NewCompanyPage() {
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
-              <Field
-                htmlFor="company_size"
-                label="企業規模"
-                hint="国内店舗数 30店舗以上は大手（2026-07-20 山路さん確定）"
-              >
-                <Select id="company_size" name="company_size" defaultValue="">
+              <Field htmlFor="tier" label="tier">
+                <Select id="tier" name="tier" defaultValue="">
                   <option value="">（未設定）</option>
-                  {Object.entries(COMPANY_SIZE).map(([value, label]) => (
+                  {Object.entries(TIER).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
                     </option>
@@ -75,7 +71,19 @@ export default function NewCompanyPage() {
               </Field>
             </div>
 
-            <Field htmlFor="website" label="Web サイト">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <Field htmlFor="target_brand" label="ターゲットブランド">
+                <Input id="target_brand" name="target_brand" />
+              </Field>
+              <Field htmlFor="lead_source" label="リード創出">
+                <Input id="lead_source" name="lead_source" />
+              </Field>
+              <Field htmlFor="parent_company" label="親会社">
+                <Input id="parent_company" name="parent_company" />
+              </Field>
+            </div>
+
+            <Field htmlFor="website" label="法人URL">
               <Input id="website" name="website" placeholder="https://" />
             </Field>
 

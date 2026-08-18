@@ -3,7 +3,7 @@ import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { updateCompanySize } from "../actions";
+import { updateCompanyDetails } from "../actions";
 import {
   Banner,
   ButtonLink,
@@ -14,19 +14,20 @@ import {
   DescList,
   EmptyState,
   Field,
+  Input,
   PageHeader,
   PageShell,
   Select,
   SubmitButton,
 } from "@/components/ui";
 import {
-  COMPANY_SIZE,
   COMPANY_STATUS,
   CONTACT_DECISION_ROLE,
   CONTACT_DECISION_ROLE_MARK,
   CONTACT_LEAD_TIME,
   DEAL_CHANNEL,
   DEAL_STAGE,
+  TIER,
   type Company,
   type Contact,
   type Deal,
@@ -99,42 +100,60 @@ export default async function CompanyDetailPage({
           <Card>
             <CardHeader title="基本情報" />
             <CardBody className="space-y-5">
-              <form action={updateCompanySize}>
+              <form action={updateCompanyDetails} className="space-y-4">
                 <input type="hidden" name="id" value={company.id} />
-                <Field
-                  htmlFor="company_size"
-                  label="企業規模"
-                  hint="国内店舗数 30店舗以上は大手（2026-07-20 山路さん確定）"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Select
-                      id="company_size"
-                      name="company_size"
-                      defaultValue={company.company_size ?? ""}
-                      className="min-w-40 flex-1"
-                    >
-                      <option value="">未設定</option>
-                      {Object.entries(COMPANY_SIZE).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </Select>
-                    <SubmitButton
-                      variant="secondary"
-                      size="sm"
-                      pendingLabel="保存中…"
-                    >
-                      保存
-                    </SubmitButton>
-                  </div>
+                <input type="hidden" name="name" value={company.name} />
+                <Field htmlFor="tier" label="tier">
+                  <Select
+                    id="tier"
+                    name="tier"
+                    defaultValue={company.tier ?? ""}
+                  >
+                    <option value="">未設定</option>
+                    {Object.entries(TIER).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
                 </Field>
+                <Field htmlFor="target_brand" label="ターゲットブランド">
+                  <Input
+                    id="target_brand"
+                    name="target_brand"
+                    defaultValue={company.target_brand ?? ""}
+                  />
+                </Field>
+                <Field htmlFor="website" label="法人URL">
+                  <Input
+                    id="website"
+                    name="website"
+                    defaultValue={company.website ?? ""}
+                    placeholder="https://"
+                  />
+                </Field>
+                <Field htmlFor="lead_source" label="リード創出">
+                  <Input
+                    id="lead_source"
+                    name="lead_source"
+                    defaultValue={company.lead_source ?? ""}
+                  />
+                </Field>
+                <Field htmlFor="parent_company" label="親会社">
+                  <Input
+                    id="parent_company"
+                    name="parent_company"
+                    defaultValue={company.parent_company ?? ""}
+                  />
+                </Field>
+                <SubmitButton variant="secondary" size="sm" pendingLabel="保存中…">
+                  保存
+                </SubmitButton>
               </form>
 
               <DescList>
                 <DescItem label="業種">{company.industry ?? "—"}</DescItem>
                 <DescItem label="電話番号">{company.phone ?? "—"}</DescItem>
-                <DescItem label="Web サイト">{company.website ?? "—"}</DescItem>
                 <DescItem label="住所">{company.address ?? "—"}</DescItem>
                 {company.note && (
                   <DescItem label="メモ">
@@ -284,7 +303,7 @@ export default async function CompanyDetailPage({
                           {DEAL_STAGE[d.stage]}
                         </span>
                         <span className="text-xs text-ink-faint">
-                          {DEAL_CHANNEL[d.channel]}
+                          {d.channel.map((c) => DEAL_CHANNEL[c]).join("・")}
                         </span>
                       </div>
                     </li>

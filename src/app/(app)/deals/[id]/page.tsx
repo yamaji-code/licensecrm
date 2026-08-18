@@ -5,21 +5,36 @@ import {
 } from "@/components/badges";
 import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
+import { MarkdownContent } from "@/components/markdown-content";
 import { displayDealTitle } from "../board-card";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { applyStageTemplates, changeDealStage, updateDeal } from "../actions";
-import { toggleTaskDone } from "../../tasks/actions";
+import { jstDateString } from "@/lib/date";
+import {
+  addDealContactEntry,
+  applyStageTemplates,
+  changeDealStage,
+  deleteDealContactEntry,
+  updateDeal,
+  updateDealChannel,
+  updateDealContactEntry,
+  updateDealGenre,
+} from "../actions";
+import { updateCompanyDetails } from "../../companies/actions";
+import {
+  quickAddNextAction,
+  toggleTaskDone,
+  updateTask,
+} from "../../tasks/actions";
 import {
   Banner,
   ButtonLink,
   Card,
   CardBody,
   CardHeader,
-  DescItem,
-  DescList,
   EmptyState,
   Field,
+  Input,
   PageHeader,
   PageShell,
   Select,
@@ -28,6 +43,7 @@ import {
 } from "@/components/ui";
 import {
   CLOSED_DEAL_STAGES,
+  compareTaskPriorityThenDueDate,
   DEAL_CHANNEL,
   DEAL_STAGE,
   DEAL_STAGE_ORDER,
@@ -35,19 +51,31 @@ import {
   PB_STATUS,
   SCENE_TAG,
   TASK_PRIORITY,
+  TASK_STATUS,
+  TIER,
   type Company,
   type Deal,
+  type DealChannel,
+  type DealContactEntry,
   type DealStage,
   type KnowledgeCard,
   type Meeting,
-  type Partner,
   type StageEvent,
   type Task,
 } from "@/lib/types";
 
 type DealDetail = Deal & {
-  companies: Pick<Company, "name"> | null;
-  partners: Pick<Partner, "name"> | null;
+  companies:
+    | Pick<
+        Company,
+        | "name"
+        | "target_brand"
+        | "tier"
+        | "website"
+        | "lead_source"
+        | "parent_company"
+      >
+    | null;
   genres: { name: string } | null;
 };
 
@@ -65,10 +93,14 @@ function formatDateTimeJst(iso: string): string {
 
 export default async function DealDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string | string[] }>;
 }) {
   const { id } = await params;
+  const { view } = await searchParams;
+  const showDone = (Array.isArray(view) ? view[0] : view) === "done";
 
   const supabase = await createClient();
 
@@ -79,10 +111,16 @@ export default async function DealDetailPage({
     { data: meetingData, error: meetingError },
     { data: knowledgeData, error: knowledgeError },
     { data: genreStatData, error: genreStatError },
+    { count: doneTaskCount },
+    { data: dealContactEntryData },
   ] = await Promise.all([
     supabase
       .from("deals")
-      .select("*, companies ( name ), partners ( name ), genres ( name )")
+      .select(
+        `*, companies (
+          name, target_brand, tier, website, lead_source, parent_company
+        ), genres ( name )`,
+      )
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -90,12 +128,18 @@ export default async function DealDetailPage({
       .select("*")
       .eq("deal_id", id)
       .order("changed_at", { ascending: false }),
-    supabase
-      .from("tasks")
-      .select("*")
-      .eq("deal_id", id)
-      .neq("status", "done")
-      .order("due_date", { ascending: true, nullsFirst: false }),
+    showDone
+      ? supabase
+          .from("tasks")
+          .select("*")
+          .eq("deal_id", id)
+          .eq("status", "done")
+          .order("updated_at", { ascending: false })
+      : supabase
+          .from("tasks")
+          .select("*")
+          .eq("deal_id", id)
+          .neq("status", "done"),
     // この案件に紐づくMTGログ（設計書§3の /deals/[id]「MTG一覧」要件）
     supabase
       .from("meetings")
@@ -115,6 +159,19 @@ export default async function DealDetailPage({
       .from("genre_stats")
       .select("genre_id, name, is_active, sort_order, contracted_count")
       .order("sort_order", { ascending: true }),
+    // 開いている一覧側にだけ出す「完了」リンクの件数
+    supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .eq("deal_id", id)
+      .eq("status", "done"),
+    // 担当者カード: 案件専用の自由入力担当者（取引先の登録済みcontactsとは独立）
+    supabase
+      .from("deal_contact_entries")
+      .select("*")
+      .eq("deal_id", id)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true }),
   ]);
 
   if (dealError || !dealData) {
@@ -127,8 +184,12 @@ export default async function DealDetailPage({
     eventError ?? taskError ?? meetingError ?? knowledgeError ?? genreStatError;
 
   const deal = dealData as DealDetail;
+  const dealContactEntries = (dealContactEntryData ?? []) as DealContactEntry[];
   const stageEvents = (eventData ?? []) as StageEvent[];
-  const openTasks = (taskData ?? []) as Task[];
+  // 優先度が高い順→期日が古い順（完了済み一覧は更新日時順のためここでは並べ替えない）
+  const openTasks = showDone
+    ? ((taskData ?? []) as Task[])
+    : ((taskData ?? []) as Task[]).toSorted(compareTaskPriorityThenDueDate);
   const meetings = (meetingData ?? []) as Meeting[];
   const relatedKnowledge = (knowledgeData ?? []) as KnowledgeCard[];
   const activeGenres = ((genreStatData ?? []) as {
@@ -157,7 +218,8 @@ export default async function DealDetailPage({
   async function markTaskDone(formData: FormData) {
     "use server";
     const taskId = String(formData.get("id"));
-    await toggleTaskDone(taskId, true);
+    const done = formData.get("done") === "true";
+    await toggleTaskDone(taskId, done);
   }
 
   // DEAL_STAGE_ORDER 上の現在位置（nurturing / lost は -1 = 進行バーの外側）
@@ -212,30 +274,98 @@ export default async function DealDetailPage({
           {/* 次アクション（この案件で最初に読む情報なのでファーストビューの先頭に置く） */}
           <Card>
             <CardHeader
-              title={`次アクション${openTasks.length > 0 ? `（${openTasks.length} 件）` : ""}`}
+              title={
+                showDone
+                  ? `完了したnext action${openTasks.length > 0 ? `（${openTasks.length} 件）` : ""}`
+                  : `next action${openTasks.length > 0 ? `（${openTasks.length} 件）` : ""}`
+              }
               actions={
-                <>
-                  {/* 現ステージの雛形タスクを後から展開する（移行案件などタスク未展開の救済） */}
-                  <form action={applyStageTemplates}>
-                    <input type="hidden" name="id" value={deal.id} />
-                    <SubmitButton
-                      variant="ghost"
-                      size="sm"
-                      pendingLabel="追加中…"
-                    >
-                      雛形から追加
-                    </SubmitButton>
-                  </form>
+                showDone ? (
                   <ButtonLink
-                    href={`/tasks/new?deal_id=${deal.id}`}
+                    href={`/deals/${deal.id}`}
                     variant="secondary"
                     size="sm"
                   >
-                    タスクを追加
+                    ← next actionに戻る
                   </ButtonLink>
-                </>
+                ) : (
+                  <>
+                    {/* 現ステージの雛形タスクを後から展開する（移行案件などタスク未展開の救済） */}
+                    <form action={applyStageTemplates}>
+                      <input type="hidden" name="id" value={deal.id} />
+                      <SubmitButton
+                        variant="ghost"
+                        size="sm"
+                        pendingLabel="追加中…"
+                      >
+                        雛形から追加
+                      </SubmitButton>
+                    </form>
+                    <ButtonLink
+                      href={`/tasks/new?deal_id=${deal.id}`}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      タスクを追加
+                    </ButtonLink>
+                    <ButtonLink
+                      href={`/deals/${deal.id}?view=done`}
+                      variant="ghost"
+                      size="sm"
+                    >
+                      完了（{doneTaskCount ?? 0}件）
+                    </ButtonLink>
+                  </>
+                )
               }
             />
+            {isActiveDeal && !showDone && (
+              <CardBody className="space-y-2 border-b border-line py-3">
+                {/* next action のワンタッチ追記。期限は自動で+7日を入れておくので
+                    そのままでも登録できる（変更も可能） */}
+                <form action={quickAddNextAction} className="space-y-2">
+                  <input type="hidden" name="deal_id" value={deal.id} />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      name="title"
+                      placeholder="next actionを追記…"
+                      className="flex-1"
+                      required
+                    />
+                    <SubmitButton size="sm" pendingLabel="追加中…">
+                      追加
+                    </SubmitButton>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Select
+                      name="priority"
+                      defaultValue="medium"
+                      className="w-24"
+                    >
+                      {Object.entries(TASK_PRIORITY).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </Select>
+                    <Select name="status" defaultValue="todo" className="w-28">
+                      {Object.entries(TASK_STATUS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </Select>
+                    <Input
+                      name="due_date"
+                      type="date"
+                      defaultValue={jstDateString(7)}
+                      className="w-40"
+                    />
+                  </div>
+                  <Textarea name="note" placeholder="メモ" rows={2} />
+                </form>
+              </CardBody>
+            )}
             {openTasks.length > 0 ? (
               <CardBody className="py-0">
                 <ul className="divide-y divide-line">
@@ -246,24 +376,103 @@ export default async function DealDetailPage({
                     >
                       <form action={markTaskDone}>
                         <input type="hidden" name="id" value={t.id} />
+                        <input
+                          type="hidden"
+                          name="done"
+                          value={showDone ? "false" : "true"}
+                        />
                         {/* 見た目の丸は小さいまま、タップ判定は 40px 角を確保する */}
                         <button
                           type="submit"
-                          aria-label={`「${t.title}」を完了にする`}
-                          aria-pressed={false}
+                          aria-label={
+                            showDone
+                              ? `「${t.title}」を未完了に戻す`
+                              : `「${t.title}」を完了にする`
+                          }
+                          aria-pressed={showDone}
                           className="group -m-2 flex h-10 w-10 items-center justify-center p-2"
                         >
                           <span
                             aria-hidden="true"
-                            className="flex h-6 w-6 items-center justify-center rounded-full border border-line text-xs text-transparent transition-colors group-hover:border-brand-500 group-hover:text-brand-700"
+                            className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs transition-colors ${
+                              showDone
+                                ? "border-ok bg-ok text-white"
+                                : "border-line text-transparent group-hover:border-brand-500 group-hover:text-brand-700"
+                            }`}
                           >
                             ✓
                           </span>
                         </button>
                       </form>
-                      <p className="min-w-0 flex-1 font-medium text-ink">
-                        {t.title}
-                      </p>
+                      <div className="min-w-0 flex-1">
+                        {/* タイトル・メモは常時表示、編集フォームは「編集」を押すまで出さない（ごちゃつき防止） */}
+                        <p
+                          className={
+                            showDone
+                              ? "font-medium text-ink-faint line-through"
+                              : "font-medium text-ink"
+                          }
+                        >
+                          {t.title}
+                        </p>
+                        {t.note && (
+                          <p className="mt-1.5 whitespace-pre-wrap rounded-lg border border-line bg-surface px-2.5 py-2 text-xs text-ink-soft">
+                            {t.note}
+                          </p>
+                        )}
+                        <details className="mt-1 [&_summary::-webkit-details-marker]:hidden">
+                          <summary className="cursor-pointer list-none text-xs text-brand-700 hover:underline">
+                            編集
+                          </summary>
+                          <form action={updateTask} className="mt-2 space-y-2">
+                            <input type="hidden" name="id" value={t.id} />
+                            <Input name="title" defaultValue={t.title} required />
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Select
+                                name="priority"
+                                defaultValue={t.priority}
+                                className="w-24"
+                              >
+                                {Object.entries(TASK_PRIORITY).map(
+                                  ([value, label]) => (
+                                    <option key={value} value={value}>
+                                      {label}
+                                    </option>
+                                  ),
+                                )}
+                              </Select>
+                              <Select
+                                name="status"
+                                defaultValue={t.status}
+                                className="w-28"
+                              >
+                                {Object.entries(TASK_STATUS).map(
+                                  ([value, label]) => (
+                                    <option key={value} value={value}>
+                                      {label}
+                                    </option>
+                                  ),
+                                )}
+                              </Select>
+                              <Input
+                                name="due_date"
+                                type="date"
+                                defaultValue={t.due_date ?? ""}
+                                className="w-40"
+                              />
+                            </div>
+                            <Textarea
+                              name="note"
+                              defaultValue={t.note ?? ""}
+                              placeholder="メモ"
+                              rows={2}
+                            />
+                            <SubmitButton size="sm" pendingLabel="保存中…">
+                              保存
+                            </SubmitButton>
+                          </form>
+                        </details>
+                      </div>
                       <span
                         className={`text-xs font-medium ${TASK_PRIORITY_STYLE[t.priority]}`}
                       >
@@ -276,6 +485,11 @@ export default async function DealDetailPage({
                   ))}
                 </ul>
               </CardBody>
+            ) : showDone ? (
+              <EmptyState
+                title="まだ完了したnext actionがありません"
+                description="next actionを完了にすると、ここに並びます。"
+              />
             ) : isActiveDeal ? (
               <CardBody>
                 <Banner
@@ -298,8 +512,8 @@ export default async function DealDetailPage({
               </CardBody>
             ) : (
               <EmptyState
-                title="次アクションの設定は不要です"
-                description={`${DEAL_STAGE[deal.stage]}の案件のため、次アクションが空でも問題ありません。`}
+                title="next actionの設定は不要です"
+                description={`${DEAL_STAGE[deal.stage]}の案件のため、next actionが空でも問題ありません。`}
               />
             )}
           </Card>
@@ -339,7 +553,11 @@ export default async function DealDetailPage({
 
               {isOffPath && (
                 <Banner
-                  tone={deal.stage === "lost" ? "warn" : "info"}
+                  tone={
+                    deal.stage === "lost" || deal.stage === "lost_after_proposal"
+                      ? "warn"
+                      : "info"
+                  }
                   title={`現在のステータス: ${DEAL_STAGE[deal.stage]}`}
                 >
                   進行バーとは別枠で管理しています。
@@ -370,7 +588,7 @@ export default async function DealDetailPage({
           {/* MTGログ（設計書§3 /deals/[id]「MTG一覧」） */}
           <Card>
             <CardHeader
-              title="MTGログ"
+              title="MTG LOG"
               actions={
                 <ButtonLink
                   href={`/meetings/new?deal_id=${deal.id}`}
@@ -400,12 +618,18 @@ export default async function DealDetailPage({
                             {MEETING_FORMAT[m.format]}
                           </span>
                           {m.held_on.slice(0, 10)}
+                          <Link
+                            href={`/meetings/${m.id}/edit`}
+                            className="text-brand-700 hover:underline"
+                          >
+                            編集
+                          </Link>
                         </span>
                       </div>
                       {m.summary && (
-                        <p className="mt-2 whitespace-pre-wrap text-ink-soft">
-                          {m.summary}
-                        </p>
+                        <div className="mt-2">
+                          <MarkdownContent content={m.summary} />
+                        </div>
                       )}
                     </li>
                   ))}
@@ -413,7 +637,7 @@ export default async function DealDetailPage({
               </CardBody>
             ) : (
               <EmptyState
-                title="まだMTGログがありません"
+                title="まだMTG LOGがありません"
                 description="商談や打ち合わせを記録すると、次に何を話すかをこの案件だけで追えます。"
                 action={
                   <ButtonLink
@@ -465,40 +689,228 @@ export default async function DealDetailPage({
         {/* 右レール: 参照するだけの属性と関連情報 */}
         <div className="space-y-6 lg:col-span-1">
           <Card>
-            <CardHeader title="取引先" />
+            <CardHeader
+              title="取引先"
+              actions={
+                <ButtonLink
+                  href={`/companies/${deal.company_id}`}
+                  variant="ghost"
+                  size="sm"
+                >
+                  ページを開く
+                </ButtonLink>
+              }
+            />
             <CardBody className="space-y-4">
-              <p className="text-lg font-medium text-ink">
-                <Link
-                  href={`/companies/${deal.company_id}`}
-                  className="hover:text-brand-700 hover:underline"
-                >
-                  {deal.companies?.name ?? "—"}
-                </Link>
-              </p>
-              {/* 右レールは幅が狭いので1列にする（2列だと値が潰れる） */}
-              <DescList columns={1}>
-                <DescItem label="獲得チャネル">
-                  {DEAL_CHANNEL[deal.channel]}
-                </DescItem>
-                <DescItem label="紹介元パートナー">
-                  {deal.partners?.name ?? "—"}
-                </DescItem>
-                <DescItem label="ジャンル">
-                  {deal.genres?.name ?? "未設定"}
-                </DescItem>
-                <DescItem label="PB品の状態">
-                  {deal.pb_status ? PB_STATUS[deal.pb_status] : "未確認"}
-                </DescItem>
-              </DescList>
-              <p className="border-t border-line pt-4 text-sm text-ink-soft">
-                担当者（人物情報）は取引先ページで管理しています。{" "}
-                <Link
-                  href={`/companies/${deal.company_id}`}
-                  className="font-medium text-ink hover:text-brand-700 hover:underline"
-                >
-                  {deal.companies?.name ?? "取引先"}ページを開く →
-                </Link>
-              </p>
+              {/* 取引先カード: 会社名・ターゲットブランド・法人URL・tier・リード創出・親会社は
+                  companies テーブルなのでまとめて1フォームで保存する。
+                  獲得チャネル・ジャンルは deals テーブルの項目のため、それぞれ単独で
+                  保存できる小さなフォームにしている（1フォームで全部を上書きすると
+                  他の案件属性まで巻き込んで消してしまうため）。
+                  並び順はサヤカさん指定（会社名→ターゲットブランド→法人URL→tier→
+                  獲得チャネル→リード創出→ジャンル→親会社）。紹介元パートナーは削除済み。 */}
+              <form action={updateCompanyDetails} className="space-y-4">
+                <input type="hidden" name="id" value={deal.company_id} />
+                <input type="hidden" name="deal_id" value={deal.id} />
+                <Field htmlFor="name" label="会社名" required>
+                  <Input
+                    id="name"
+                    name="name"
+                    defaultValue={deal.companies?.name ?? ""}
+                    required
+                  />
+                </Field>
+                <Field htmlFor="target_brand" label="ターゲットブランド">
+                  <Input
+                    id="target_brand"
+                    name="target_brand"
+                    defaultValue={deal.companies?.target_brand ?? ""}
+                  />
+                </Field>
+                <Field htmlFor="website" label="法人URL">
+                  <Input
+                    id="website"
+                    name="website"
+                    defaultValue={deal.companies?.website ?? ""}
+                    placeholder="https://"
+                  />
+                </Field>
+                <Field htmlFor="tier" label="tier">
+                  <Select
+                    id="tier"
+                    name="tier"
+                    defaultValue={deal.companies?.tier ?? ""}
+                  >
+                    <option value="">未設定</option>
+                    {Object.entries(TIER).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+
+                <Field htmlFor="lead_source" label="リード創出">
+                  <Input
+                    id="lead_source"
+                    name="lead_source"
+                    defaultValue={deal.companies?.lead_source ?? ""}
+                  />
+                </Field>
+                <Field htmlFor="parent_company" label="親会社">
+                  <Input
+                    id="parent_company"
+                    name="parent_company"
+                    defaultValue={deal.companies?.parent_company ?? ""}
+                  />
+                </Field>
+                <SubmitButton variant="secondary" size="sm" pendingLabel="保存中…">
+                  保存
+                </SubmitButton>
+              </form>
+
+              <form
+                action={updateDealChannel}
+                className="space-y-2 border-t border-line pt-4"
+              >
+                <input type="hidden" name="id" value={deal.id} />
+                <fieldset className="space-y-1.5">
+                  <legend className="text-sm font-medium text-ink">
+                    獲得チャネル
+                  </legend>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    {Object.entries(DEAL_CHANNEL).map(([value, label]) => (
+                      <label
+                        key={value}
+                        className="flex items-center gap-1.5 text-sm text-ink"
+                      >
+                        <input
+                          type="checkbox"
+                          name="channel"
+                          value={value}
+                          defaultChecked={deal.channel.includes(
+                            value as DealChannel,
+                          )}
+                          className="h-4 w-4 rounded border-line"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <SubmitButton variant="secondary" size="sm" pendingLabel="保存中…">
+                  保存
+                </SubmitButton>
+              </form>
+
+              <form
+                action={updateDealGenre}
+                className="flex items-end gap-2 border-t border-line pt-4"
+              >
+                <input type="hidden" name="id" value={deal.id} />
+                <div className="flex-1">
+                  <Field htmlFor="genre_id_company_card" label="ジャンル">
+                    <Select
+                      id="genre_id_company_card"
+                      name="genre_id"
+                      defaultValue={deal.genre_id ?? ""}
+                    >
+                      <option value="">（未設定）</option>
+                      {genreOptions.map((g) => (
+                        <option key={g.genre_id} value={g.genre_id}>
+                          {g.name}
+                          {g.contracted_count > 0 ? "（契約済・優先度低）" : ""}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                </div>
+                <SubmitButton variant="secondary" size="sm" pendingLabel="保存中…">
+                  保存
+                </SubmitButton>
+              </form>
+            </CardBody>
+          </Card>
+
+          {/* 担当者カード: 案件専用の自由入力担当者（取引先の登録済みcontactsとは独立） */}
+          <Card>
+            <CardHeader title={`担当者（${dealContactEntries.length}名）`} />
+            <CardBody className="space-y-4">
+              {dealContactEntries.length > 0 && (
+                <ul className="space-y-3">
+                  {dealContactEntries.map((c) => (
+                    <li key={c.id} className="rounded-lg border border-line p-3">
+                      <form action={updateDealContactEntry} className="space-y-2">
+                        <input type="hidden" name="id" value={c.id} />
+                        <input type="hidden" name="deal_id" value={deal.id} />
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <Input
+                            name="name"
+                            defaultValue={c.name}
+                            placeholder="名前"
+                            required
+                          />
+                          <Input
+                            name="title"
+                            defaultValue={c.title ?? ""}
+                            placeholder="役職"
+                          />
+                          <Input
+                            name="phone"
+                            defaultValue={c.phone ?? ""}
+                            placeholder="電話"
+                          />
+                          <Input
+                            name="email"
+                            type="email"
+                            defaultValue={c.email ?? ""}
+                            placeholder="メール"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <SubmitButton
+                            variant="secondary"
+                            size="sm"
+                            pendingLabel="保存中…"
+                          >
+                            保存
+                          </SubmitButton>
+                        </div>
+                      </form>
+                      <form action={deleteDealContactEntry} className="mt-1.5">
+                        <input type="hidden" name="id" value={c.id} />
+                        <input type="hidden" name="deal_id" value={deal.id} />
+                        <SubmitButton variant="ghost" size="sm" pendingLabel="削除中…">
+                          削除
+                        </SubmitButton>
+                      </form>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {dealContactEntries.length === 0 && (
+                <p className="text-xs text-ink-soft">
+                  まだ担当者が登録されていません。下のフォームから追加できます。
+                </p>
+              )}
+
+              <form
+                action={addDealContactEntry}
+                className="space-y-2 border-t border-line pt-4"
+              >
+                <input type="hidden" name="deal_id" value={deal.id} />
+                <p className="text-sm font-medium text-ink">担当者を追加</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <Input name="name" placeholder="名前" required />
+                  <Input name="title" placeholder="役職" />
+                  <Input name="phone" placeholder="電話" />
+                  <Input name="email" type="email" placeholder="メール" />
+                </div>
+                <SubmitButton variant="secondary" size="sm" pendingLabel="追加中…">
+                  追加する
+                </SubmitButton>
+              </form>
             </CardBody>
           </Card>
 
@@ -508,6 +920,9 @@ export default async function DealDetailPage({
             <CardBody>
               <form action={updateDeal} className="space-y-4">
                 <input type="hidden" name="id" value={deal.id} />
+                <Field htmlFor="title" label="案件名" required>
+                  <Input id="title" name="title" defaultValue={deal.title} required />
+                </Field>
                 <Field htmlFor="genre_id" label="ジャンル">
                   <Select
                     id="genre_id"

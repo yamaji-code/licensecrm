@@ -1,7 +1,7 @@
 import { COMPANY_STATUS_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { COMPANY_SIZE, COMPANY_STATUS, type Company } from "@/lib/types";
+import { COMPANY_STATUS, TIER, type Company } from "@/lib/types";
 import {
   ButtonLink,
   Card,
@@ -48,7 +48,7 @@ export default async function CompaniesPage() {
         <Card>
           <EmptyState
             title="まだ取引先が登録されていません"
-            description="営業先の会社を登録すると、案件・担当者・MTGログを紐づけて管理できます。"
+            description="営業先の会社を登録すると、案件・担当者・MTG LOGを紐づけて管理できます。"
             action={
               <ButtonLink href="/companies/new" variant="primary" size="sm">
                 最初の取引先を登録
@@ -95,7 +95,7 @@ export default async function CompaniesPage() {
                       </span>
                     </TD>
                     <TD className="text-ink-soft">
-                      {c.company_size ? COMPANY_SIZE[c.company_size] : "未設定"}
+                      {c.tier ? TIER[c.tier] : "未設定"}
                     </TD>
                     <TD className="text-ink-soft">{c.industry ?? "—"}</TD>
                     <TD className="text-ink-soft">{c.phone ?? "—"}</TD>
@@ -123,7 +123,7 @@ export default async function CompaniesPage() {
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-ink-soft">
-                    {c.company_size ? COMPANY_SIZE[c.company_size] : "規模未設定"}
+                    {c.tier ? TIER[c.tier] : "tier未設定"}
                     {c.industry ? ` ・ ${c.industry}` : ""}
                   </p>
                 </Link>

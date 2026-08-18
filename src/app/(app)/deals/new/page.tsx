@@ -77,25 +77,39 @@ export default async function NewDealPage({
               </Select>
             </Field>
 
-            <Field htmlFor="title" label="案件名" required>
-              <Input id="title" name="title" required />
+            <Field
+              htmlFor="title"
+              label="案件名"
+              hint="取引先にターゲットブランドが設定されている場合は、そちらが自動的に案件名として使われます。"
+            >
+              <Input id="title" name="title" />
             </Field>
 
-            <Field
-              htmlFor="channel"
-              label="獲得チャネル"
-              required
-              hint="初回接点で決める・後から変えない"
-            >
-              <Select id="channel" name="channel" required defaultValue="">
-                <option value="">（選択してください）</option>
+            <fieldset className="space-y-1.5">
+              <legend className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                獲得チャネル
+                <span className="text-xs font-normal text-danger">必須</span>
+              </legend>
+              <p className="text-xs leading-relaxed text-ink-soft">
+                初回接点で決める・後から変えない（複数選択可）
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
                 {Object.entries(DEAL_CHANNEL).map(([value, label]) => (
-                  <option key={value} value={value}>
+                  <label
+                    key={value}
+                    className="flex items-center gap-1.5 text-sm text-ink"
+                  >
+                    <input
+                      type="checkbox"
+                      name="channel"
+                      value={value}
+                      className="h-4 w-4 rounded border-line"
+                    />
                     {label}
-                  </option>
+                  </label>
                 ))}
-              </Select>
-            </Field>
+              </div>
+            </fieldset>
 
             {/* パートナー未登録のときは選べる操作が無いので、入力欄ではなく案内を出す
                 （空の select を置くと「選ばなかった」のか「選べない」のか区別できない） */}

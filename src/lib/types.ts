@@ -8,29 +8,27 @@ export const COMPANY_STATUS = {
 } as const;
 export type CompanyStatus = keyof typeof COMPANY_STATUS;
 
-// 案件ステージ（0004 で実業務フローに全面再定義）
-// 実フロー: スクレイピング→急成長抽出→週1選定→案件化→商談→契約→ブランド化→SV案内可能(ゴール)
-// スクレイピング〜抽出は案件前工程のためボード外。sourced = 抽出済みで投入された状態。
+// 案件ステージ（0008 でサヤカさん指定のスプレッドシートに合わせて再編）
+// sourced / picked は廃止（既存案件は approaching へ統合）。
+// lost を「提案前NG」に、新設の lost_after_proposal を「提案後NG」とし、失注理由フェーズを
+// ステージそのもので表現する（lost_reason_phase は既存のまま残置・実質的に補足情報）。
 // meeting_done / contract は KPI 計上点のためキー名を旧体系から維持している（ラベルのみ運用語）。
 export const DEAL_STAGE = {
-  sourced: "候補（抽出済）",
-  picked: "今週のアプローチ先",
   approaching: "アプローチ中",
-  meeting_set: "商談設定",
+  meeting_set: "アポ",
   meeting_done: "商談実施",
   negotiating: "条件調整",
-  contract: "契約",
-  branding: "ブランド化",
-  sv_ready: "SV案内可能",
-  nurturing: "時期見送り",
-  lost: "失注",
+  contract: "開発引継ぎ",
+  branding: "5店舗獲得",
+  sv_ready: "完了",
+  nurturing: "ペンディング",
+  lost: "提案前NG",
+  lost_after_proposal: "提案後NG",
 } as const;
 export type DealStage = keyof typeof DEAL_STAGE;
 
 // 各ステージの入場条件（列ヘッダの説明・確認ラリー削減のための明文化）
 export const DEAL_STAGE_ENTRY: Record<DealStage, string> = {
-  sourced: "急成長アカウントとして抽出済み・山路さん未判断",
-  picked: "山路さんが今週アプローチすると選定。石田さんはここから着手",
   approaching: "初回コンタクトに着手した",
   meeting_set: "商談の日程が確定した",
   meeting_done: "商談を実施した（商談KPIに自動計上）",
@@ -38,16 +36,15 @@ export const DEAL_STAGE_ENTRY: Record<DealStage, string> = {
   contract: "契約を締結した（契約KPIに自動計上）",
   branding: "PB品確認・代替品探索・ブランド共創・原価/マニュアル整備中",
   sv_ready: "SVが加盟店に案内できる状態（ゴール）",
-  // 進行外の2つは「ステージ名と同じ文言」になっていて条件を説明できていなかったので、
+  // 進行外の3つは「ステージ名と同じ文言」になっていて条件を説明できていなかったので、
   // 何が起きたらこの列に動かすのかを書く（列ヘッダの説明＝確認ラリー削減が目的のため）
   nurturing: "今は進められないが見込みは残っている。再アプローチ予定日を決めて待つ",
-  lost: "見送りが確定した。提案前NG / 提案後NG を理由として記録する",
+  lost: "提案前に見送りが確定した",
+  lost_after_proposal: "提案後に見送りが確定した",
 };
 
-// パイプラインの進行順（nurturing / lost は進行外のため含めない）
+// パイプラインの進行順（nurturing / lost 系は進行外のため含めない）
 export const DEAL_STAGE_ORDER: readonly DealStage[] = [
-  "sourced",
-  "picked",
   "approaching",
   "meeting_set",
   "meeting_done",
@@ -62,6 +59,7 @@ export const CLOSED_DEAL_STAGES: readonly DealStage[] = [
   "sv_ready",
   "nurturing",
   "lost",
+  "lost_after_proposal",
 ];
 
 // ボードの列グループ帯（フェーズの塊を示す視覚ラベルの単一ソース）
@@ -70,7 +68,6 @@ export const STAGE_GROUPS: readonly {
   label: string;
   stages: readonly DealStage[];
 }[] = [
-  { key: "lead", label: "リード", stages: ["sourced", "picked"] },
   {
     key: "sales",
     label: "営業",
@@ -81,22 +78,32 @@ export const STAGE_GROUPS: readonly {
     label: "契約・ブランド化",
     stages: ["contract", "branding", "sv_ready"],
   },
-  { key: "inactive", label: "進行外", stages: ["nurturing", "lost"] },
+  {
+    key: "inactive",
+    label: "進行外",
+    stages: ["nurturing", "lost", "lost_after_proposal"],
+  },
 ];
 
+// 0009 で新4区分に刷新。旧値（direct_list/inbound/other/referral_customer/
+// referral_alliance）は全件 approach_list に一括変換のうえ削除済み。
+// 0011 で 会食/イベント/その他 を追加し、複数選択（deals.channel は text[]）に変更。
 export const DEAL_CHANNEL = {
-  referral_customer: "顧客紹介",
-  referral_alliance: "アライアンス紹介",
-  direct_list: "ダイレクト（リスト）",
-  inbound: "インバウンド",
+  approach_list: "アプローチリスト",
+  partner_referral: "協力者紹介",
+  ishida_referral: "石田紹介",
+  yamaji_referral: "山路紹介",
+  dinner: "会食",
+  event: "イベント",
   other: "その他",
 } as const;
 export type DealChannel = keyof typeof DEAL_CHANNEL;
 
 // 紹介系チャネル（案件作成時に referrals へ「紹介された」記録を残す対象）
 export const REFERRAL_CHANNELS: readonly DealChannel[] = [
-  "referral_customer",
-  "referral_alliance",
+  "partner_referral",
+  "ishida_referral",
+  "yamaji_referral",
 ];
 
 // 見送り・失注のフェーズ（旧CRM実データで「提案前NG」「提案後NG」の2種を確認済み）
@@ -107,12 +114,13 @@ export const LOST_REASON_PHASE = {
 } as const;
 export type LostReasonPhase = keyof typeof LOST_REASON_PHASE;
 
-// 企業規模（決裁リードタイムの規模別計測用。null = 未設定）
-export const COMPANY_SIZE = {
-  large: "大手",
-  sme: "中小",
+// 企業規模の3区分（決裁リードタイムの規模別計測用。null = 未設定）
+export const TIER = {
+  enterprise: "Enterprise",
+  mid_market: "Mid-Market",
+  smb: "SMB",
 } as const;
-export type CompanySize = keyof typeof COMPANY_SIZE;
+export type Tier = keyof typeof TIER;
 
 // PB品の状態（null = 未確認）
 export const PB_STATUS = {
@@ -125,7 +133,7 @@ export type PbStatus = keyof typeof PB_STATUS;
 
 // 部署（タスク雛形の担当部署。旧Notion 16ステップ雛形の区分に対応）
 export const DEPARTMENT = {
-  sales: "営業",
+  sales: "Sales",
   biz_dev: "業態開発",
   management: "経営",
   cs: "CS",
@@ -204,13 +212,35 @@ export const TASK_PRIORITY = {
 } as const;
 export type TaskPriority = keyof typeof TASK_PRIORITY;
 
+const TASK_PRIORITY_RANK: Record<TaskPriority, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
+// タスク／next action の並び順: 優先度が高い順→期日が古い（早い）順。期日未設定は最後。
+export function compareTaskPriorityThenDueDate(
+  a: { priority: TaskPriority; due_date: string | null },
+  b: { priority: TaskPriority; due_date: string | null },
+): number {
+  const byPriority = TASK_PRIORITY_RANK[a.priority] - TASK_PRIORITY_RANK[b.priority];
+  if (byPriority !== 0) return byPriority;
+  if (a.due_date === b.due_date) return 0;
+  if (a.due_date === null) return 1;
+  if (b.due_date === null) return -1;
+  return a.due_date < b.due_date ? -1 : 1;
+}
+
 export type Company = {
   id: string;
   name: string;
   name_kana: string | null;
   status: CompanyStatus;
   industry: string | null;
-  company_size: CompanySize | null;
+  tier: Tier | null;
+  target_brand: string | null;
+  lead_source: string | null;
+  parent_company: string | null;
   phone: string | null;
   website: string | null;
   address: string | null;
@@ -235,6 +265,18 @@ export type Contact = {
   contact_ng_hours: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// 案件専用の担当者（取引先の登録済みcontactsとは独立・自由入力）
+export type DealContactEntry = {
+  id: string;
+  deal_id: string;
+  name: string;
+  title: string | null;
+  phone: string | null;
+  email: string | null;
+  sort_order: number;
+  created_at: string;
 };
 
 export type Task = {
@@ -274,7 +316,7 @@ export type Deal = {
   company_id: string;
   title: string;
   stage: DealStage;
-  channel: DealChannel;
+  channel: DealChannel[];
   partner_id: string | null;
   genre_id: string | null;
   pb_status: PbStatus | null;
@@ -348,6 +390,15 @@ export type Meeting = {
   updated_at: string;
 };
 
+// MTG LOGでよく使う文章（決まり文句・議事メモのテンプレ）の再利用スニペット
+export type MeetingSnippet = {
+  id: string;
+  title: string;
+  body: string;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type KnowledgeCard = {
   id: string;
   scene_tag: SceneTag;
@@ -368,7 +419,7 @@ export type KnowledgeCard = {
 export type DealKpiFact = {
   deal_id: string;
   company_id: string;
-  channel: DealChannel;
+  channel: DealChannel[];
   partner_id: string | null;
   stage: DealStage;
   created_at: string;
@@ -376,14 +427,14 @@ export type DealKpiFact = {
   first_contract_at: string | null;
   genre_id: string | null;
   migrated_from_legacy: boolean;
-  company_size: CompanySize | null;
+  tier: Tier | null;
 };
 
 // stage_durations ビューの行（各案件×各ステージの滞在日数）
 export type StageDuration = {
   deal_id: string;
   company_id: string;
-  company_size: CompanySize | null;
+  tier: Tier | null;
   genre_id: string | null;
   migrated_from_legacy: boolean;
   stage: DealStage;

@@ -3,11 +3,13 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import {
   CLOSED_DEAL_STAGES,
+  compareTaskPriorityThenDueDate,
   DEAL_CHANNEL,
   DEAL_STAGE,
   DEAL_STAGE_ENTRY,
   STAGE_GROUPS,
   type DealStage,
+  type TaskPriority,
 } from "@/lib/types";
 import { setBoardDensity } from "./actions";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
@@ -19,6 +21,7 @@ import {
   DealCard,
   displayDealTitle,
   type DealCounts,
+  type DealNextAction,
   type DealWithRelations,
 } from "./board-card";
 import {
@@ -44,7 +47,11 @@ import {
 const BOARD_COLUMNS: DealStage[] = STAGE_GROUPS.flatMap((g) => [...g.stages]);
 
 // 既定で折りたたむ進行外の列（件数が多く日常業務で常時見る対象ではない）
-const COLLAPSIBLE_COLUMNS: readonly DealStage[] = ["nurturing", "lost"];
+const COLLAPSIBLE_COLUMNS: readonly DealStage[] = [
+  "nurturing",
+  "lost",
+  "lost_after_proposal",
+];
 
 // 列幅。1画面に入る列数を決めるので、増やすときは実機で列数を数えてから変えること。
 const COLUMN_WIDTH = {
@@ -63,11 +70,9 @@ export default async function DealsPage({
     genre?: string | string[];
     advanced?: string | string[];
     to?: string | string[];
-    added?: string | string[];
   }>;
 }) {
-  const { stage, view, expand, genre, advanced, to, added } =
-    await searchParams;
+  const { stage, view, expand, genre, advanced, to } = await searchParams;
   // 表示モード: 既定はボード。table を指定したときだけ表形式。
   const isTable = view === "table";
   // 表示密度: cookie 保存（トグルは Server Action setBoardDensity）
@@ -92,7 +97,9 @@ export default async function DealsPage({
   const supabase = await createClient();
   let query = supabase
     .from("deals")
-    .select("*, companies ( name, company_size ), genres ( name )")
+    .select(
+      "*, companies ( name, target_brand, tier ), genres ( name )",
+    )
     .order("created_at", { ascending: false });
   // 表形式のときだけ絞り込みを適用する（ボードは全件を列に分ける）
   if (isTable && stageFilter) {
@@ -107,15 +114,15 @@ export default async function DealsPage({
     { data, error },
     { data: taskData },
     { data: genreData },
-    { data: genreStatData },
     { data: kpiFactsData, error: kpiFactsError },
   ] = await Promise.all([
     query,
-    // due_date は期限切れ判定に使う（赤で出す唯一の対象）
+    // due_date は期限切れ判定に使う（赤で出す唯一の対象）。title はボードカードの
+    // next action 表示用（priority は表示順の並べ替え用）。
     supabase
       .from("tasks")
       .select(
-        "deal_id, status, due_date, template_id, stage_task_templates ( is_required )",
+        "deal_id, status, due_date, priority, title, template_id, stage_task_templates ( is_required )",
       )
       .not("deal_id", "is", null),
     supabase
@@ -123,7 +130,6 @@ export default async function DealsPage({
       .select("id, name")
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
-    supabase.from("genre_stats").select("genre_id, contracted_count"),
     // ボード上部のKPIバー用（集計はダッシュボードと同一関数 summarizeQuarterKpi）
     supabase
       .from("deal_kpi_facts")
@@ -133,12 +139,6 @@ export default async function DealsPage({
 
   const deals = (data ?? []) as DealWithRelations[];
   const genres = (genreData ?? []) as { id: string; name: string }[];
-  // 契約到達済みジャンル = 優先度を下げて表示するジャンル
-  const contractedGenreIds = new Set(
-    (genreStatData ?? [])
-      .filter((g) => (g.contracted_count ?? 0) > 0)
-      .map((g) => g.genre_id as string),
-  );
 
   // ステージ前進直後のフラッシュ表示（advanceDealStage の redirect パラメータ）。
   // 実在する案件のときだけ表示する（URL 直叩き・リロード時の誤表示防止）。
@@ -148,8 +148,6 @@ export default async function DealsPage({
       : null;
   const advancedTo =
     typeof to === "string" && to in DEAL_STAGE ? (to as DealStage) : null;
-  const advancedAdded =
-    typeof added === "string" && /^\d+$/.test(added) ? Number(added) : 0;
 
   // 案件ごとのタスク集計。
   // total===0 = 次アクション未設定。必須未完了0（かつ total>0）= 次ステージへ進める
@@ -164,6 +162,11 @@ export default async function DealsPage({
     }
     return c;
   };
+  // ボードカードに表示する next action のタイトル一覧（未完了のみ・優先度順）
+  const nextActionsByDeal = new Map<
+    string,
+    { title: string; priority: TaskPriority; due_date: string | null }[]
+  >();
   for (const t of taskData ?? []) {
     const c = getCounts(t.deal_id as string);
     c.total += 1;
@@ -177,7 +180,19 @@ export default async function DealsPage({
       }
       const due = t.due_date as string | null;
       if (due && due < today) c.overdue += 1;
+
+      const dealId = t.deal_id as string;
+      const list = nextActionsByDeal.get(dealId) ?? [];
+      list.push({
+        title: t.title as string,
+        priority: t.priority as TaskPriority,
+        due_date: due,
+      });
+      nextActionsByDeal.set(dealId, list);
     }
+  }
+  for (const list of nextActionsByDeal.values()) {
+    list.sort(compareTaskPriorityThenDueDate);
   }
   const EMPTY_COUNTS: DealCounts = {
     total: 0,
@@ -241,7 +256,7 @@ export default async function DealsPage({
               <Chip tone="danger">期限切れ {overdueCount} 件</Chip>
             )}
             {noActionCount > 0 && (
-              <Chip tone="warn">次アクション未設定 {noActionCount} 件</Chip>
+              <Chip tone="warn">next action未設定 {noActionCount} 件</Chip>
             )}
             <span className="text-ink-faint">
               進行中 {activeDeals.length} 件のうち
@@ -270,8 +285,6 @@ export default async function DealsPage({
             }
           >
             「{advancedDeal.title}」を{DEAL_STAGE[advancedTo]}へ進めました。
-            {advancedAdded > 0 &&
-              `タスク ${advancedAdded} 件を自動追加しました。`}
           </Banner>
         </div>
       )}
@@ -313,9 +326,9 @@ export default async function DealsPage({
             <BoardView
               deals={deals}
               countsByDeal={countsByDeal}
+              nextActionsByDeal={nextActionsByDeal}
               density={density}
               expandSet={expandSet}
-              contractedGenreIds={contractedGenreIds}
             />
           </div>
         </>
@@ -374,15 +387,15 @@ function expandHref(expandSet: Set<string>, col: DealStage, open: boolean) {
 function BoardView({
   deals,
   countsByDeal,
+  nextActionsByDeal,
   density,
   expandSet,
-  contractedGenreIds,
 }: {
   deals: DealWithRelations[];
   countsByDeal: Map<string, DealCounts>;
+  nextActionsByDeal: Map<string, DealNextAction[]>;
   density: Density;
   expandSet: Set<string>;
-  contractedGenreIds: Set<string>;
 }) {
   const byStage = new Map<DealStage, DealWithRelations[]>();
   for (const col of BOARD_COLUMNS) byStage.set(col, []);
@@ -484,8 +497,8 @@ function BoardView({
                                 overdue: 0,
                               }
                             }
+                            nextActions={nextActionsByDeal.get(d.id) ?? []}
                             compact={compact}
-                            contractedGenreIds={contractedGenreIds}
                           />
                         </DraggableCard>
                       ))
@@ -624,13 +637,13 @@ function TableView({
                         </span>
                         {isOverdue(d.id) && <Chip tone="danger">期限切れ</Chip>}
                         {needsAction(d.id, d.stage) && (
-                          <Chip tone="warn">次アクション未設定</Chip>
+                          <Chip tone="warn">next action未設定</Chip>
                         )}
                       </div>
                     </TD>
                     <TD className="text-ink-soft">{d.genres?.name ?? "—"}</TD>
                     <TD className="text-ink-soft">
-                      {DEAL_CHANNEL[d.channel]}
+                      {d.channel.map((c) => DEAL_CHANNEL[c]).join("・")}
                     </TD>
                     <TD className="text-ink-soft">
                       {d.updated_at.slice(0, 10)}
@@ -689,7 +702,7 @@ function DealMobileList({
                   {DEAL_STAGE[d.stage]}
                 </span>
                 {overdue && <Chip tone="danger">期限切れ</Chip>}
-                {needsAction && <Chip tone="warn">次アクション未設定</Chip>}
+                {needsAction && <Chip tone="warn">next action未設定</Chip>}
               </div>
             </Link>
           </li>

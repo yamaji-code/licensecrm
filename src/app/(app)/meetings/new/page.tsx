@@ -1,7 +1,14 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createMeeting } from "../actions";
-import { MEETING_FORMAT, SCENE_TAG, type Company, type Deal } from "@/lib/types";
+import { MtgLogEditor } from "../mtg-log-editor";
+import {
+  MEETING_FORMAT,
+  SCENE_TAG,
+  type Company,
+  type Deal,
+  type MeetingSnippet,
+} from "@/lib/types";
 import {
   ButtonLink,
   Card,
@@ -13,7 +20,6 @@ import {
   PageShell,
   Select,
   SubmitButton,
-  Textarea,
 } from "@/components/ui";
 
 type DealOption = Pick<Deal, "id" | "title"> & {
@@ -40,15 +46,21 @@ export default async function NewMeetingPage({
   const presetCompanyId = typeof company_id === "string" ? company_id : "";
 
   const supabase = await createClient();
-  const [{ data: companyData }, { data: dealData }] = await Promise.all([
-    supabase.from("companies").select("id, name").order("name", { ascending: true }),
-    supabase
-      .from("deals")
-      .select("*, companies ( name )")
-      .order("created_at", { ascending: false }),
-  ]);
+  const [{ data: companyData }, { data: dealData }, { data: snippetData }] =
+    await Promise.all([
+      supabase.from("companies").select("id, name").order("name", { ascending: true }),
+      supabase
+        .from("deals")
+        .select("*, companies ( name )")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("meeting_snippets")
+        .select("*")
+        .order("created_at", { ascending: false }),
+    ]);
   const companies = (companyData ?? []) as Pick<Company, "id" | "name">[];
   const deals = (dealData ?? []) as DealOption[];
+  const snippets = (snippetData ?? []) as MeetingSnippet[];
 
   return (
     <PageShell width="narrow">
@@ -116,8 +128,23 @@ export default async function NewMeetingPage({
               <Input id="attendees" name="attendees" />
             </Field>
 
-            <Field htmlFor="summary" label="要旨">
-              <Textarea id="summary" name="summary" rows={4} />
+            <Field
+              htmlFor="summary"
+              label="要旨"
+              hint={
+                <Link
+                  href="/meetings/snippets"
+                  className="text-brand-700 hover:underline"
+                >
+                  よく使う文章を管理
+                </Link>
+              }
+            >
+              <MtgLogEditor
+                name="summary"
+                dealId={presetDealId || null}
+                snippets={snippets}
+              />
             </Field>
 
             {/* 困りごとは3行1組の入力グループ。単独のラベルではなくグループ見出しなので

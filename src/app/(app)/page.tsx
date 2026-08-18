@@ -4,11 +4,11 @@ import { formatRate, inRange, summarizeQuarterKpi } from "@/lib/kpi";
 import { ProgressBar } from "@/components/progress-bar";
 import {
   CLOSED_DEAL_STAGES,
-  COMPANY_SIZE,
   DEAL_CHANNEL,
   DEAL_STAGE,
   DEAL_STAGE_ORDER,
   TASK_STATUS,
+  TIER,
   type Deal,
   type DealChannel,
   type DealKpiFact,
@@ -117,11 +117,12 @@ export default async function Dashboard() {
   ).length;
   const cohortRateLabel = formatRate(cohortContractCount, meetingsCount);
 
-  // チャネル別: 全期間の商談到達を母数にする（当Qのみだとサンプルが少なすぎて傾向が見えないため）
+  // チャネル別: 全期間の商談到達を母数にする（当Qのみだとサンプルが少なすぎて傾向が見えないため）。
+  // 獲得チャネルは複数選択のため、1件の案件が複数チャネルの集計に重複カウントされうる。
   const channelStats = (Object.keys(DEAL_CHANNEL) as DealChannel[]).map(
     (channel) => {
       const channelMeetings = kpiFacts.filter(
-        (f) => f.channel === channel && f.first_meeting_at !== null,
+        (f) => f.channel.includes(channel) && f.first_meeting_at !== null,
       );
       const channelContracts = channelMeetings.filter(
         (f) => f.first_contract_at !== null,
@@ -152,8 +153,9 @@ export default async function Dashboard() {
     (d) => !d.is_current && !d.migrated_from_legacy,
   );
   const SIZE_COLUMNS = [
-    { key: "large", label: COMPANY_SIZE.large },
-    { key: "sme", label: COMPANY_SIZE.sme },
+    { key: "enterprise", label: TIER.enterprise },
+    { key: "mid_market", label: TIER.mid_market },
+    { key: "smb", label: TIER.smb },
     { key: "unset", label: "未設定" },
   ] as const;
   const leadTimeRows = DEAL_STAGE_ORDER.filter((s) => s !== "sv_ready").map(
@@ -164,9 +166,7 @@ export default async function Dashboard() {
           .filter(
             (d) =>
               d.stage === stage &&
-              (col.key === "unset"
-                ? d.company_size === null
-                : d.company_size === col.key),
+              (col.key === "unset" ? d.tier === null : d.tier === col.key),
           )
           .map((d) => d.days_in_stage);
         const m = median(values);
@@ -204,7 +204,7 @@ export default async function Dashboard() {
         {noNextActionCount > 0 && (
           <Banner
             tone="warn"
-            title={`次アクションが決まっていない案件が ${noNextActionCount} 件あります`}
+            title={`next actionが決まっていない案件が ${noNextActionCount} 件あります`}
             actions={
               <ButtonLink href="/deals" size="sm">
                 案件ボードで確認

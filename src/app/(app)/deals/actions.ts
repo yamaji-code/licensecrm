@@ -32,6 +32,18 @@ function parsePbStatus(value: FormDataEntryValue | null): PbStatus | null {
   return Object.hasOwn(PB_STATUS, s) ? (s as PbStatus) : null;
 }
 
+// 獲得チャネルは複数選択（チェックボックス）。不正値は無視し、重複は除く。
+// 1件も選ばれていない場合は必須エラーにする。
+function parseChannels(formData: FormData): DealChannel[] {
+  const raw = formData.getAll("channel").map(String);
+  const valid = raw.filter((c) => Object.hasOwn(DEAL_CHANNEL, c)) as DealChannel[];
+  const unique = [...new Set(valid)];
+  if (unique.length === 0) {
+    throw new Error("獲得チャネルは1つ以上選択してください。");
+  }
+  return unique;
+}
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -123,36 +135,39 @@ function str(value: FormDataEntryValue | null): string | null {
 }
 
 export async function createDeal(formData: FormData) {
-  const title = str(formData.get("title"));
-  if (!title) {
-    throw new Error("案件名は必須です。");
-  }
-
   const companyId = str(formData.get("company_id"));
   if (!companyId) {
     throw new Error("取引先は必須です。");
   }
 
-  const channel = String(formData.get("channel") ?? "");
-  if (!Object.hasOwn(DEAL_CHANNEL, channel)) {
-    throw new Error("獲得チャネルの値が不正です。");
-  }
+  const channel = parseChannels(formData);
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // 案件名はターゲットブランドと一致させる。設定が無い取引先だけ手入力の案件名を使う。
+  const { data: company } = await supabase
+    .from("companies")
+    .select("target_brand")
+    .eq("id", companyId)
+    .maybeSingle();
+  const title = company?.target_brand ?? str(formData.get("title"));
+  if (!title) {
+    throw new Error("案件名は必須です。");
+  }
+
   const partnerId = str(formData.get("partner_id"));
 
-  // stage は DB デフォルトの 'sourced' で作成する。
+  // stage は DB デフォルトの 'approaching' で作成する。
   // stage_events への初回記録は deals の DB トリガーが行うため、ここでは書かない。
   const { data: deal, error } = await supabase
     .from("deals")
     .insert({
       company_id: companyId,
       title,
-      channel: channel as DealChannel,
+      channel,
       partner_id: partnerId,
       genre_id: parseGenreId(formData.get("genre_id")),
       pb_status: parsePbStatus(formData.get("pb_status")),
@@ -167,7 +182,7 @@ export async function createDeal(formData: FormData) {
   }
 
   // 紹介系チャネルでパートナー指定がある場合は「紹介された」記録も残す
-  if (REFERRAL_CHANNELS.includes(channel as DealChannel) && partnerId) {
+  if (channel.some((c) => REFERRAL_CHANNELS.includes(c)) && partnerId) {
     const { error: referralError } = await supabase.from("referrals").insert({
       partner_id: partnerId,
       direction: "received",
@@ -189,10 +204,16 @@ export async function updateDeal(formData: FormData) {
     throw new Error("案件IDが不正です。");
   }
 
+  const title = str(formData.get("title"));
+  if (!title) {
+    throw new Error("案件名は必須です。");
+  }
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("deals")
     .update({
+      title,
       note: str(formData.get("note")),
       genre_id: parseGenreId(formData.get("genre_id")),
       pb_status: parsePbStatus(formData.get("pb_status")),
@@ -205,6 +226,49 @@ export async function updateDeal(formData: FormData) {
 
   revalidatePath(`/deals/${id}`);
   redirect(`/deals/${id}`);
+}
+
+// 取引先カードの「獲得チャネル」だけを単独で更新する（他の項目は触らないミニフォーム用）
+export async function updateDealChannel(formData: FormData) {
+  const id = str(formData.get("id"));
+  if (!id) {
+    throw new Error("案件IDが不正です。");
+  }
+  const channel = parseChannels(formData);
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("deals")
+    .update({ channel })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/deals/${id}`);
+  revalidatePath("/deals");
+}
+
+// 取引先カードの「ジャンル」だけを単独で更新する（他の項目は触らないミニフォーム用）
+export async function updateDealGenre(formData: FormData) {
+  const id = str(formData.get("id"));
+  if (!id) {
+    throw new Error("案件IDが不正です。");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("deals")
+    .update({ genre_id: parseGenreId(formData.get("genre_id")) })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/deals/${id}`);
+  revalidatePath("/deals");
 }
 
 // カンバンボードの「→ 次へ」用。必須タスク（雛形の is_required / 手動作成タスク）が
@@ -281,16 +345,9 @@ export async function advanceDealStage(formData: FormData) {
     throw new Error("既に他の画面でステージが変わっています。再読み込みしてください。");
   }
 
-  // 新ステージのタスク雛形を自動展開（展開済み分は除外・二重展開はDBの一意制約でも防止）
-  const added = await expandStageTemplates(
-    supabase,
-    id,
-    deal.company_id as string | null,
-    nextStage,
-  );
-
+  // 雛形タスクは自動展開しない。案件詳細の「雛形から追加」で必要な分だけ手動で追加する。
   revalidatePath("/deals");
-  redirect(`/deals?advanced=${id}&to=${nextStage}&added=${added}`);
+  redirect(`/deals?advanced=${id}&to=${nextStage}`);
 }
 
 // 案件詳細の「雛形を適用」用。現ステージの雛形タスクを後から展開する
@@ -355,20 +412,7 @@ export async function changeDealStage(formData: FormData) {
     throw new Error(`ステージ変更に失敗しました: ${error.message}`);
   }
 
-  // 雛形展開: 前方移動（パイプライン順で前進）と nurturing（再アプローチ管理タスク）のみ。
-  // 後退・lost への移動では展開しない。
-  const fromIndex = DEAL_STAGE_ORDER.indexOf(current.stage as DealStage);
-  const toIndex = DEAL_STAGE_ORDER.indexOf(stage as DealStage);
-  const isForward = toIndex >= 0 && toIndex > fromIndex;
-  if (isForward || stage === "nurturing") {
-    await expandStageTemplates(
-      supabase,
-      id,
-      current.company_id as string | null,
-      stage as DealStage,
-    );
-  }
-
+  // 雛形タスクは自動展開しない。案件詳細の「雛形から追加」で必要な分だけ手動で追加する。
   revalidatePath(`/deals/${id}`);
   revalidatePath("/deals");
   redirect(`/deals/${id}`);
@@ -376,7 +420,6 @@ export async function changeDealStage(formData: FormData) {
 
 // ボードのドラッグ&ドロップ用。カードを任意のステージ列へ落として移動する。
 // 手動移動なのでタスク完了ゲートは課さない（詳細ページのプルダウンと同じ扱い）。
-// 前方移動と時期見送りでは雛形を展開し、ボードに留まる（redirect しない）。
 export async function moveDealToStage(dealId: string, toStage: string) {
   if (!dealId) {
     throw new Error("案件IDが不正です。");
@@ -407,17 +450,73 @@ export async function moveDealToStage(dealId: string, toStage: string) {
     throw new Error(`ステージ変更に失敗しました: ${error.message}`);
   }
 
-  const fromIndex = DEAL_STAGE_ORDER.indexOf(current.stage as DealStage);
-  const toIndex = DEAL_STAGE_ORDER.indexOf(toStage as DealStage);
-  const isForward = toIndex >= 0 && toIndex > fromIndex;
-  if (isForward || toStage === "nurturing") {
-    await expandStageTemplates(
-      supabase,
-      dealId,
-      current.company_id as string | null,
-      toStage as DealStage,
-    );
+  // 雛形タスクは自動展開しない。案件詳細の「雛形から追加」で必要な分だけ手動で追加する。
+  revalidatePath("/deals");
+}
+
+// 担当者カード: 取引先の登録済みcontactsとは独立した、案件専用の自由入力担当者。
+export async function addDealContactEntry(formData: FormData) {
+  const dealId = str(formData.get("deal_id"));
+  const name = str(formData.get("name"));
+  if (!dealId || !name) {
+    throw new Error("案件または名前が不正です。");
   }
 
-  revalidatePath("/deals");
+  const supabase = await createClient();
+  const { error } = await supabase.from("deal_contact_entries").insert({
+    deal_id: dealId,
+    name,
+    title: str(formData.get("title")),
+    phone: str(formData.get("phone")),
+    email: str(formData.get("email")),
+  });
+
+  if (error) {
+    throw new Error(`追加に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/deals/${dealId}`);
+}
+
+export async function updateDealContactEntry(formData: FormData) {
+  const id = str(formData.get("id"));
+  const dealId = str(formData.get("deal_id"));
+  const name = str(formData.get("name"));
+  if (!id || !dealId || !name) {
+    throw new Error("担当者または名前が不正です。");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("deal_contact_entries")
+    .update({
+      name,
+      title: str(formData.get("title")),
+      phone: str(formData.get("phone")),
+      email: str(formData.get("email")),
+    })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/deals/${dealId}`);
+}
+
+export async function deleteDealContactEntry(formData: FormData) {
+  const id = str(formData.get("id"));
+  const dealId = str(formData.get("deal_id"));
+  if (!id || !dealId) {
+    throw new Error("担当者が不正です。");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("deal_contact_entries").delete().eq("id", id);
+
+  if (error) {
+    throw new Error(`削除に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/deals/${dealId}`);
 }
