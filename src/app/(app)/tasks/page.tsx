@@ -229,11 +229,11 @@ function TaskChip({
 }) {
   const done = task.status === "done";
   const companyName = companyNameOf(task);
-  const titleClassName = `block w-full truncate text-left text-xs hover:text-brand-700 hover:underline ${
+  const titleClassName = `block w-full truncate text-left text-[10px] leading-tight hover:text-brand-700 hover:underline ${
     done ? "text-ink-faint line-through" : "text-ink"
   }`;
   return (
-    <li className="flex items-center gap-1.5 rounded-md border border-line bg-white px-1.5 py-1">
+    <li className="flex items-center gap-1 rounded-md border border-line bg-white px-1 py-0.5">
       <DoneToggle task={task} action={action} />
       <div className="min-w-0 flex-1">
         {task.deal_id ? (
@@ -249,10 +249,16 @@ function TaskChip({
           </TaskModalTrigger>
         )}
         {companyName && (
-          <p className="truncate text-[9px] text-ink-faint">{companyName}</p>
+          <p className="truncate text-[8px] leading-tight text-ink-faint">
+            {companyName}
+          </p>
         )}
       </div>
-      <PriorityLabel task={task} />
+      <span
+        className={`shrink-0 text-[9px] font-medium ${TASK_PRIORITY_STYLE[task.priority]}`}
+      >
+        {TASK_PRIORITY[task.priority]}
+      </span>
     </li>
   );
 }
