@@ -147,13 +147,9 @@ export async function createDeal(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 案件名はターゲットブランドと一致させる。設定が無い取引先だけ手入力の案件名を使う。
-  const { data: company } = await supabase
-    .from("companies")
-    .select("target_brand")
-    .eq("id", companyId)
-    .maybeSingle();
-  const title = company?.target_brand ?? str(formData.get("title"));
+  // 案件名は入力された値をそのまま使う。1つの取引先に複数の案件（看板）が
+  // 発生しうるため、案件名を取引先のターゲットブランドへ強制的に合わせない。
+  const title = str(formData.get("title"));
   if (!title) {
     throw new Error("案件名は必須です。");
   }

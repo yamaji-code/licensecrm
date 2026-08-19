@@ -92,18 +92,6 @@ export async function updateCompanyDetails(formData: FormData) {
     throw new Error(`更新に失敗しました: ${error.message}`);
   }
 
-  // 案件名はターゲットブランドと一致させる運用のため、変更されたら
-  // この取引先に紐づく案件の案件名もまとめて更新する（設定が空になった時は上書きしない）。
-  if (targetBrand) {
-    const { error: syncError } = await supabase
-      .from("deals")
-      .update({ title: targetBrand })
-      .eq("company_id", id);
-    if (syncError) {
-      throw new Error(`案件名の同期に失敗しました: ${syncError.message}`);
-    }
-  }
-
   revalidatePath(`/companies/${id}`);
   revalidatePath("/companies");
   revalidatePath("/deals");

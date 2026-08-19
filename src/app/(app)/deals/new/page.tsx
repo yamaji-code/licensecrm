@@ -77,12 +77,8 @@ export default async function NewDealPage({
               </Select>
             </Field>
 
-            <Field
-              htmlFor="title"
-              label="案件名"
-              hint="取引先にターゲットブランドが設定されている場合は、そちらが自動的に案件名として使われます。"
-            >
-              <Input id="title" name="title" />
+            <Field htmlFor="title" label="案件名" required>
+              <Input id="title" name="title" required />
             </Field>
 
             <fieldset className="space-y-1.5">
