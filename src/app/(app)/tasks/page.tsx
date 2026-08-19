@@ -15,11 +15,9 @@ import {
 } from "@/lib/date";
 import {
   compareTaskPriorityThenDueDate,
+  TASK_ASSIGNEE,
   TASK_PRIORITY,
   TASK_STATUS,
-  type Company,
-  type Deal,
-  type Task,
 } from "@/lib/types";
 import {
   ButtonLink,
@@ -41,25 +39,25 @@ import {
   TR,
   Table,
 } from "@/components/ui";
-import { quickAddNextAction, toggleTaskDone, updateTask } from "./actions";
+import {
+  quickAddNextAction,
+  toggleTaskDone,
+  updateTask,
+  updateTaskAssignee,
+  updateTaskDueDate,
+  updateTaskPriority,
+  updateTaskStatus,
+} from "./actions";
+import { InlineDateInput, InlineSelect } from "./inline-fields";
 import { TaskModalTrigger } from "./task-modal";
+import { TaskDetailPanel } from "./task-panel";
+import {
+  companyNameOf,
+  TASK_WITH_COMPANY_SELECT,
+  type DealOption,
+  type TaskWithCompany,
+} from "./task-types";
 import { TaskTypeField } from "./task-type-field";
-
-type DealOption = Pick<Deal, "id" | "title"> & {
-  companies: Pick<Company, "name"> | null;
-};
-
-// タスクは company_id を直接持たないことが多い（案件のnext actionはdeal_idだけで
-// 作られるため）。表示する取引先名は、直接の company_id が無ければ紐づく案件の
-// 取引先で補う。
-type TaskWithCompany = Task & {
-  companies: { name: string } | null;
-  deals: { companies: { name: string } | null } | null;
-};
-
-function companyNameOf(task: TaskWithCompany): string | null {
-  return task.companies?.name ?? task.deals?.companies?.name ?? null;
-}
 
 type TaskRange = "list" | "day" | "week" | "month";
 
@@ -112,41 +110,8 @@ function DoneToggle({
   );
 }
 
-function PriorityLabel({ task }: { task: TaskWithCompany }) {
-  return (
-    <span className={`text-xs font-medium ${TASK_PRIORITY_STYLE[task.priority]}`}>
-      {TASK_PRIORITY[task.priority]}
-    </span>
-  );
-}
-
-function StatusBadge({ task }: { task: TaskWithCompany }) {
-  return (
-    <span
-      className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-        TASK_STATUS_STYLE[task.status]
-      }`}
-    >
-      {TASK_STATUS[task.status]}
-    </span>
-  );
-}
-
-// タスク種別はDBの列ではなく deal_id の有無で表す（next action=案件のタスク／other=それ以外）。
-function TaskKindBadge({ task }: { task: TaskWithCompany }) {
-  const isNextAction = Boolean(task.deal_id);
-  return (
-    <span
-      className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-        isNextAction ? "bg-brand-50 text-brand-700" : "bg-surface text-ink-soft"
-      }`}
-    >
-      {isNextAction ? "next action" : "other task"}
-    </span>
-  );
-}
-
-// タイトル・優先度・ステータス・期限・メモ。インライン編集フォームとモーダル詳細で共用する。
+// タイトル・優先度・ステータス・期限・メモ。モーダル詳細（週/月カレンダー表示）で使う。
+// リスト/日表示では行内で直接編集できるため使わない。
 function TaskFields({ task }: { task: TaskWithCompany }) {
   return (
     <>
@@ -183,43 +148,23 @@ function TaskFields({ task }: { task: TaskWithCompany }) {
   );
 }
 
-// ワンタッチ編集: クリックでタイトルが編集可能になる（案件詳細ページと同じ挙動）
-function TaskTitle({ task }: { task: TaskWithCompany }) {
-  const titleClassName = `cursor-pointer list-none hover:text-brand-700 hover:underline ${
+// タスク名クリックで右側のパネルを開く（タイトル・担当者・期日・優先度・ステータス・
+// メモをまとめて確認・編集できる）。案件に紐づくタスクも、パネル内から案件ページへ
+// 移動できるようにしている。
+function TaskTitle({ task, href }: { task: TaskWithCompany; href: string }) {
+  const titleClassName = `block truncate text-left hover:text-brand-700 hover:underline ${
     task.status === "done"
       ? "font-medium text-ink-faint line-through"
       : "font-medium text-ink"
   }`;
 
-  // 案件に紐づくタスクはクリックで案件ページへ（カレンダー表示と同じ仕様）。
-  // 紐づかないタスクは、その場で開いて編集できるようにする。
-  if (task.deal_id) {
-    return (
-      <>
-        <Link href={`/deals/${task.deal_id}`} className={`block ${titleClassName}`}>
-          {task.title}
-        </Link>
-        {companyNameOf(task) && (
-          <p className="text-xs text-ink-faint">{companyNameOf(task)}</p>
-        )}
-      </>
-    );
-  }
-
   return (
     <>
-      <details>
-        <summary className={`marker:hidden ${titleClassName}`}>{task.title}</summary>
-        <form action={updateTask} className="mt-2 space-y-2">
-          <input type="hidden" name="id" value={task.id} />
-          <TaskFields task={task} />
-          <SubmitButton size="sm" pendingLabel="保存中…">
-            保存
-          </SubmitButton>
-        </form>
-      </details>
+      <Link href={href} scroll={false} className={titleClassName}>
+        {task.title}
+      </Link>
       {companyNameOf(task) && (
-        <p className="text-xs text-ink-faint">{companyNameOf(task)}</p>
+        <p className="truncate text-xs text-ink-faint">{companyNameOf(task)}</p>
       )}
     </>
   );
@@ -297,32 +242,31 @@ function TaskChip({
   );
 }
 
-// 期限切れ（未完了かつ期限が今日より前）は赤で緊急感を出す
-function DueDate({ task }: { task: TaskWithCompany }) {
-  if (!task.due_date) {
-    return <span className="text-ink-faint">期限なし</span>;
-  }
-  const overdue = task.status !== "done" && task.due_date < jstDateString();
-  if (!overdue) {
-    return <span>{task.due_date}</span>;
-  }
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className="font-medium text-danger">{task.due_date}</span>
-      <span className="rounded-full border border-danger/25 bg-danger-bg px-1.5 py-0.5 text-[10px] font-medium text-danger">
-        期限切れ
-      </span>
-    </span>
-  );
+const ASSIGNEE_OPTIONS = Object.entries(TASK_ASSIGNEE) as [string, string][];
+const PRIORITY_OPTIONS = Object.entries(TASK_PRIORITY) as [string, string][];
+const STATUS_OPTIONS = Object.entries(TASK_STATUS) as [string, string][];
+
+// 期限切れ（未完了かつ期限が今日より前）は赤で緊急感を出す。常にどちらか一方の
+// 文字色クラスだけを返す（呼び出し側で他の色クラスと重ねて指定しないこと）。
+function dueDateClassName(task: TaskWithCompany): string {
+  const overdue =
+    task.status !== "done" &&
+    Boolean(task.due_date) &&
+    (task.due_date as string) < jstDateString();
+  return overdue ? "text-danger font-medium" : "text-ink";
 }
 
-// 広い画面は表、狭い画面はカードに落とすタスク一覧（リスト表示・日表示で共用）
+// タスク名・担当者・期日・優先度・ステータスの一覧（Asanaのリスト表示を踏襲）。
+// 担当者・期日・優先度・ステータスは行内で直接変更できる（変更は即保存）。
+// 広い画面は表、狭い画面はカードに落とす（リスト表示・日表示で共用）。
 function TaskTable({
   tasks,
   markDone,
+  taskHref,
 }: {
   tasks: TaskWithCompany[];
   markDone: (formData: FormData) => Promise<void>;
+  taskHref: (id: string) => string;
 }) {
   return (
     <>
@@ -333,11 +277,11 @@ function TaskTable({
               <TH className="w-12">
                 <span className="sr-only">完了</span>
               </TH>
-              <TH>タスク</TH>
-              <TH>種別</TH>
-              <TH>優先度</TH>
-              <TH>ステータス</TH>
-              <TH>期限</TH>
+              <TH>タスク名</TH>
+              <TH className="w-44">担当者</TH>
+              <TH className="w-36">期日</TH>
+              <TH className="w-24">優先度</TH>
+              <TH className="w-32">ステータス</TH>
             </TR>
           </THead>
           <TBody>
@@ -347,19 +291,46 @@ function TaskTable({
                   <DoneToggle task={t} action={markDone} />
                 </TD>
                 <TD>
-                  <TaskTitle task={t} />
+                  <TaskTitle task={t} href={taskHref(t.id)} />
                 </TD>
                 <TD>
-                  <TaskKindBadge task={t} />
+                  <InlineSelect
+                    taskId={t.id}
+                    value={t.assignee ?? "ishida"}
+                    options={ASSIGNEE_OPTIONS}
+                    action={updateTaskAssignee}
+                    ariaLabel={`「${t.title}」の担当者`}
+                    className="text-ink"
+                  />
                 </TD>
                 <TD>
-                  <PriorityLabel task={t} />
+                  <InlineDateInput
+                    taskId={t.id}
+                    value={t.due_date ?? ""}
+                    action={updateTaskDueDate}
+                    ariaLabel={`「${t.title}」の期日`}
+                    className={dueDateClassName(t)}
+                  />
                 </TD>
                 <TD>
-                  <StatusBadge task={t} />
+                  <InlineSelect
+                    taskId={t.id}
+                    value={t.priority}
+                    options={PRIORITY_OPTIONS}
+                    action={updateTaskPriority}
+                    ariaLabel={`「${t.title}」の優先度`}
+                    className={TASK_PRIORITY_STYLE[t.priority]}
+                  />
                 </TD>
-                <TD className="whitespace-nowrap text-xs text-ink-soft">
-                  <DueDate task={t} />
+                <TD>
+                  <InlineSelect
+                    taskId={t.id}
+                    value={t.status}
+                    options={STATUS_OPTIONS}
+                    action={updateTaskStatus}
+                    ariaLabel={`「${t.title}」のステータス`}
+                    className={`rounded-full font-medium ${TASK_STATUS_STYLE[t.status]}`}
+                  />
                 </TD>
               </TR>
             ))}
@@ -371,21 +342,48 @@ function TaskTable({
         {tasks.map((t) => (
           <li
             key={t.id}
-            className="flex items-start gap-4 rounded-card border border-line bg-white px-4 py-3 shadow-card"
+            className="rounded-card border border-line bg-white px-4 py-3 shadow-card"
           >
-            <div className="pt-0.5">
-              <DoneToggle task={t} action={markDone} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <TaskTitle task={t} />
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <TaskKindBadge task={t} />
-                <StatusBadge task={t} />
-                <PriorityLabel task={t} />
-                <span className="text-xs text-ink-soft">
-                  <DueDate task={t} />
-                </span>
+            <div className="flex items-start gap-3">
+              <div className="pt-0.5">
+                <DoneToggle task={t} action={markDone} />
               </div>
+              <div className="min-w-0 flex-1">
+                <TaskTitle task={t} href={taskHref(t.id)} />
+              </div>
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <InlineSelect
+                taskId={t.id}
+                value={t.assignee ?? "ishida"}
+                options={ASSIGNEE_OPTIONS}
+                action={updateTaskAssignee}
+                ariaLabel={`「${t.title}」の担当者`}
+                className="border-line bg-surface text-ink"
+              />
+              <InlineDateInput
+                taskId={t.id}
+                value={t.due_date ?? ""}
+                action={updateTaskDueDate}
+                ariaLabel={`「${t.title}」の期日`}
+                className={`border-line bg-surface ${dueDateClassName(t)}`}
+              />
+              <InlineSelect
+                taskId={t.id}
+                value={t.priority}
+                options={PRIORITY_OPTIONS}
+                action={updateTaskPriority}
+                ariaLabel={`「${t.title}」の優先度`}
+                className={`border-line ${TASK_PRIORITY_STYLE[t.priority]}`}
+              />
+              <InlineSelect
+                taskId={t.id}
+                value={t.status}
+                options={STATUS_OPTIONS}
+                action={updateTaskStatus}
+                ariaLabel={`「${t.title}」のステータス`}
+                className={`rounded-full font-medium ${TASK_STATUS_STYLE[t.status]}`}
+              />
             </div>
           </li>
         ))}
@@ -401,9 +399,11 @@ export default async function TasksPage({
     view?: string | string[];
     range?: string | string[];
     date?: string | string[];
+    task?: string | string[];
   }>;
 }) {
-  const { view, range: rangeParam, date: dateParam } = await searchParams;
+  const { view, range: rangeParam, date: dateParam, task: taskParam } =
+    await searchParams;
   const first = (v?: string | string[]) => (Array.isArray(v) ? v[0] : v);
   const showDone = first(view) === "done";
   const rangeRaw = first(rangeParam);
@@ -412,8 +412,36 @@ export default async function TasksPage({
       ? rangeRaw
       : "list";
   const anchorDate = first(dateParam) || jstDateString();
+  const selectedTaskId = first(taskParam) || null;
+
+  // タスク名クリックで開く右パネル・その閉じるリンクのURLを組み立てる。
+  // 現在の表示形式（view/range/date）は維持したまま task だけ付け外しする。
+  const baseParams = new URLSearchParams();
+  if (showDone) baseParams.set("view", "done");
+  if (range !== "list") {
+    baseParams.set("range", range);
+    baseParams.set("date", anchorDate);
+  }
+  function taskHref(id: string | null): string {
+    const params = new URLSearchParams(baseParams);
+    if (id) {
+      params.set("task", id);
+    }
+    const qs = params.toString();
+    return qs ? `/tasks?${qs}` : "/tasks";
+  }
 
   const supabase = await createClient();
+
+  const selectedTask = selectedTaskId
+    ? (
+        await supabase
+          .from("tasks")
+          .select(TASK_WITH_COMPANY_SELECT)
+          .eq("id", selectedTaskId)
+          .maybeSingle()
+      ).data as TaskWithCompany | null
+    : null;
 
   // ワンタッチ追記でタスク種別（next action/other task）を選べるようにするための案件一覧
   const { data: dealData } = await supabase
@@ -621,6 +649,13 @@ export default async function TasksPage({
                 </div>
                 <TaskTypeField deals={deals} />
                 <div className="flex flex-wrap items-center gap-2">
+                  <Select name="assignee" defaultValue="ishida" className="w-40">
+                    {Object.entries(TASK_ASSIGNEE).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
                   <Select name="priority" defaultValue="medium" className="w-24">
                     {Object.entries(TASK_PRIORITY).map(([value, label]) => (
                       <option key={value} value={value}>
@@ -672,7 +707,7 @@ export default async function TasksPage({
             />
           </Card>
         ) : (
-          <TaskTable tasks={tasks} markDone={markDone} />
+          <TaskTable tasks={tasks} markDone={markDone} taskHref={taskHref} />
         ))}
 
       {range === "day" && (
@@ -682,7 +717,7 @@ export default async function TasksPage({
               <p className="mb-1.5 text-xs font-medium text-ink-soft">
                 期限なし
               </p>
-              <TaskTable tasks={noDueTasks} markDone={markDone} />
+              <TaskTable tasks={noDueTasks} markDone={markDone} taskHref={taskHref} />
             </div>
           )}
           {(tasksByDate.get(anchorDate) ?? []).length === 0 ? (
@@ -696,6 +731,7 @@ export default async function TasksPage({
             <TaskTable
               tasks={tasksByDate.get(anchorDate) ?? []}
               markDone={markDone}
+              taskHref={taskHref}
             />
           )}
         </>
@@ -825,6 +861,10 @@ export default async function TasksPage({
             })}
           </div>
         </>
+      )}
+
+      {selectedTask && (
+        <TaskDetailPanel task={selectedTask} closeHref={taskHref(null)} />
       )}
     </PageShell>
   );

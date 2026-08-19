@@ -2,7 +2,13 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createTask } from "../actions";
 import { TaskTypeField } from "../task-type-field";
-import { TASK_PRIORITY, TASK_STATUS, type Company, type Deal } from "@/lib/types";
+import {
+  TASK_ASSIGNEE,
+  TASK_PRIORITY,
+  TASK_STATUS,
+  type Company,
+  type Deal,
+} from "@/lib/types";
 import {
   Banner,
   ButtonLink,
@@ -67,6 +73,16 @@ export default async function NewTaskPage({
           <form action={createTask} className="space-y-5">
             <Field htmlFor="title" label="タイトル" required>
               <Input id="title" name="title" required />
+            </Field>
+
+            <Field htmlFor="assignee" label="担当者">
+              <Select id="assignee" name="assignee" defaultValue="ishida">
+                {Object.entries(TASK_ASSIGNEE).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
             </Field>
 
             <div className="grid gap-5 sm:grid-cols-3">
