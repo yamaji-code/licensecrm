@@ -185,18 +185,31 @@ function TaskFields({ task }: { task: TaskWithCompany }) {
 
 // ワンタッチ編集: クリックでタイトルが編集可能になる（案件詳細ページと同じ挙動）
 function TaskTitle({ task }: { task: TaskWithCompany }) {
+  const titleClassName = `cursor-pointer list-none hover:text-brand-700 hover:underline ${
+    task.status === "done"
+      ? "font-medium text-ink-faint line-through"
+      : "font-medium text-ink"
+  }`;
+
+  // 案件に紐づくタスクはクリックで案件ページへ（カレンダー表示と同じ仕様）。
+  // 紐づかないタスクは、その場で開いて編集できるようにする。
+  if (task.deal_id) {
+    return (
+      <>
+        <Link href={`/deals/${task.deal_id}`} className={`block ${titleClassName}`}>
+          {task.title}
+        </Link>
+        {companyNameOf(task) && (
+          <p className="text-xs text-ink-faint">{companyNameOf(task)}</p>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <details>
-        <summary
-          className={`cursor-pointer list-none marker:hidden hover:text-brand-700 hover:underline ${
-            task.status === "done"
-              ? "font-medium text-ink-faint line-through"
-              : "font-medium text-ink"
-          }`}
-        >
-          {task.title}
-        </summary>
+        <summary className={`marker:hidden ${titleClassName}`}>{task.title}</summary>
         <form action={updateTask} className="mt-2 space-y-2">
           <input type="hidden" name="id" value={task.id} />
           <TaskFields task={task} />
