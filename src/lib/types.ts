@@ -212,6 +212,14 @@ export const TASK_PRIORITY = {
 } as const;
 export type TaskPriority = keyof typeof TASK_PRIORITY;
 
+// タスクの担当者。ログインユーザーは限られているため（社内メンバー2名）、
+// 取引先/案件のような別テーブル参照ではなく固定の2択にしている。
+export const TASK_ASSIGNEE = {
+  ishida: "Sayaka Ishida",
+  yamaji: "Kenichiro Yamaji",
+} as const;
+export type TaskAssignee = keyof typeof TASK_ASSIGNEE;
+
 const TASK_PRIORITY_RANK: Record<TaskPriority, number> = {
   high: 0,
   medium: 1,
@@ -291,6 +299,7 @@ export type Task = {
   template_id: string | null;
   department: Department | null;
   assignee_id: string | null;
+  assignee: TaskAssignee | null;
   note: string | null;
   created_at: string;
   updated_at: string;

@@ -6,9 +6,11 @@ import { createClient } from "@/lib/supabase/server";
 import { jstDateString } from "@/lib/date";
 import {
   CLOSED_DEAL_STAGES,
+  TASK_ASSIGNEE,
   TASK_PRIORITY,
   TASK_STATUS,
   type DealStage,
+  type TaskAssignee,
   type TaskPriority,
   type TaskStatus,
 } from "@/lib/types";
@@ -16,6 +18,13 @@ import {
 function str(value: FormDataEntryValue | null): string | null {
   const s = typeof value === "string" ? value.trim() : "";
   return s === "" ? null : s;
+}
+
+// ログインメールアドレスから担当者の初期値を推測する（山路さんなら yamaji、それ以外は ishida）。
+// あくまで初期選択のヒントで、フォーム上でいつでも変更できる。
+function assigneeFromEmail(email: string | null | undefined): TaskAssignee {
+  const local = (email ?? "").trim().toLowerCase().split("@")[0] ?? "";
+  return local.startsWith("yamaji") ? "yamaji" : "ishida";
 }
 
 export async function createTask(formData: FormData) {
@@ -36,6 +45,11 @@ export async function createTask(formData: FormData) {
     throw new Error("案件に紐づくタスクは期限の入力が必須です。");
   }
 
+  const assigneeRaw = str(formData.get("assignee"));
+  if (assigneeRaw && !(assigneeRaw in TASK_ASSIGNEE)) {
+    throw new Error("担当者の値が不正です。");
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -50,6 +64,7 @@ export async function createTask(formData: FormData) {
     deal_id: dealId,
     note: str(formData.get("note")),
     assignee_id: user?.id ?? null,
+    assignee: (assigneeRaw as TaskAssignee | null) ?? assigneeFromEmail(user?.email),
   });
 
   if (error) {
@@ -82,6 +97,14 @@ export async function updateTask(formData: FormData) {
   if (!(priority in TASK_PRIORITY)) throw new Error("優先度の値が不正です。");
   if (!(status in TASK_STATUS)) throw new Error("ステータスの値が不正です。");
 
+  // assignee はこのフォームでは任意（案件詳細ページの編集フォームには項目が無いため）。
+  // 送られてきた時だけ更新対象に含める。
+  const hasAssignee = formData.has("assignee");
+  const assigneeRaw = str(formData.get("assignee"));
+  if (hasAssignee && assigneeRaw && !(assigneeRaw in TASK_ASSIGNEE)) {
+    throw new Error("担当者の値が不正です。");
+  }
+
   const supabase = await createClient();
 
   // 次アクション空白禁止ルール: 案件に紐づくタスクは期限必須（サーバー側で強制）
@@ -102,6 +125,7 @@ export async function updateTask(formData: FormData) {
       note,
       priority: priority as TaskPriority,
       status: status as TaskStatus,
+      ...(hasAssignee ? { assignee: assigneeRaw as TaskAssignee | null } : {}),
     })
     .eq("id", id)
     .select("deal_id")
@@ -140,6 +164,11 @@ export async function quickAddNextAction(formData: FormData) {
     throw new Error("案件に紐づくタスクは期限の入力が必須です。");
   }
 
+  const assigneeRaw = str(formData.get("assignee"));
+  if (assigneeRaw && !(assigneeRaw in TASK_ASSIGNEE)) {
+    throw new Error("担当者の値が不正です。");
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -153,6 +182,7 @@ export async function quickAddNextAction(formData: FormData) {
     note: str(formData.get("note")),
     deal_id: dealId,
     assignee_id: user?.id ?? null,
+    assignee: (assigneeRaw as TaskAssignee | null) ?? assigneeFromEmail(user?.email),
   });
 
   if (error) {
@@ -212,4 +242,92 @@ export async function toggleTaskDone(id: string, done: boolean) {
   if ((count ?? 0) === 0) {
     redirect(`/tasks/new?deal_id=${dealId}&next=1`);
   }
+}
+
+function revalidateTaskViews(dealId: string | null) {
+  revalidatePath("/tasks");
+  if (dealId) {
+    revalidatePath(`/deals/${dealId}`);
+    revalidatePath("/deals");
+  }
+}
+
+// 一覧の行内で直接変更するための単項目更新。タイトル等は不要なので updateTask とは分けている。
+export async function updateTaskAssignee(id: string, assignee: string) {
+  if (assignee !== "" && !(assignee in TASK_ASSIGNEE)) {
+    throw new Error("担当者の値が不正です。");
+  }
+  const supabase = await createClient();
+  const { data: updated, error } = await supabase
+    .from("tasks")
+    .update({ assignee: assignee === "" ? null : (assignee as TaskAssignee) })
+    .eq("id", id)
+    .select("deal_id")
+    .single();
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+  revalidateTaskViews(updated?.deal_id ?? null);
+}
+
+export async function updateTaskPriority(id: string, priority: string) {
+  if (!(priority in TASK_PRIORITY)) {
+    throw new Error("優先度の値が不正です。");
+  }
+  const supabase = await createClient();
+  const { data: updated, error } = await supabase
+    .from("tasks")
+    .update({ priority: priority as TaskPriority })
+    .eq("id", id)
+    .select("deal_id")
+    .single();
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+  revalidateTaskViews(updated?.deal_id ?? null);
+}
+
+// ステータスを「完了」にする変更は、次アクション誘導を含む toggleTaskDone に委ねる。
+export async function updateTaskStatus(id: string, status: string) {
+  if (!(status in TASK_STATUS)) {
+    throw new Error("ステータスの値が不正です。");
+  }
+  if (status === "done") {
+    await toggleTaskDone(id, true);
+    return;
+  }
+  const supabase = await createClient();
+  const { data: updated, error } = await supabase
+    .from("tasks")
+    .update({ status: status as TaskStatus })
+    .eq("id", id)
+    .select("deal_id")
+    .single();
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+  revalidateTaskViews(updated?.deal_id ?? null);
+}
+
+export async function updateTaskDueDate(id: string, dueDate: string) {
+  const supabase = await createClient();
+  const { data: existing } = await supabase
+    .from("tasks")
+    .select("deal_id")
+    .eq("id", id)
+    .maybeSingle();
+  // 次アクション空白禁止ルール: 案件に紐づくタスクは期限必須（サーバー側で強制）
+  if (existing?.deal_id && !dueDate) {
+    throw new Error("案件に紐づくタスクは期限の入力が必須です。");
+  }
+  const { data: updated, error } = await supabase
+    .from("tasks")
+    .update({ due_date: dueDate === "" ? null : dueDate })
+    .eq("id", id)
+    .select("deal_id")
+    .single();
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+  revalidateTaskViews(updated?.deal_id ?? null);
 }
