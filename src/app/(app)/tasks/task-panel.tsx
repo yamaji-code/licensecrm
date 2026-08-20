@@ -1,8 +1,13 @@
+import Image from "next/image";
 import Link from "next/link";
 import { TASK_ASSIGNEE, TASK_PRIORITY, TASK_STATUS } from "@/lib/types";
 import { Field, Input, Select, SubmitButton, Textarea } from "@/components/ui";
 import { updateTask } from "./actions";
-import { companyNameOf, type TaskWithCompany } from "./task-types";
+import {
+  companyNameOf,
+  TASK_ASSIGNEE_AVATAR,
+  type TaskWithCompany,
+} from "./task-types";
 
 /*
  * タスク名クリックで開く右側パネル。タイトル・担当者・期日・優先度・ステータス・メモを
@@ -62,20 +67,30 @@ export function TaskDetailPanel({
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field htmlFor={`panel-assignee-${task.id}`} label="担当者">
-                <Select
-                  id={`panel-assignee-${task.id}`}
-                  name="assignee"
-                  defaultValue={task.assignee ?? "ishida"}
-                >
-                  {Object.entries(TASK_ASSIGNEE).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
+              <Field htmlFor={`panel-assignee-${task.id}`} label="Assignee">
+                <div className="flex items-center gap-2">
+                  <Image
+                    src={TASK_ASSIGNEE_AVATAR[task.assignee ?? "ishida"]}
+                    alt=""
+                    width={24}
+                    height={24}
+                    unoptimized
+                    className="h-6 w-6 shrink-0 rounded-full object-cover"
+                  />
+                  <Select
+                    id={`panel-assignee-${task.id}`}
+                    name="assignee"
+                    defaultValue={task.assignee ?? "ishida"}
+                  >
+                    {Object.entries(TASK_ASSIGNEE).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
               </Field>
-              <Field htmlFor={`panel-due-${task.id}`} label="期日">
+              <Field htmlFor={`panel-due-${task.id}`} label="Due date">
                 <Input
                   id={`panel-due-${task.id}`}
                   name="due_date"
@@ -83,7 +98,7 @@ export function TaskDetailPanel({
                   defaultValue={task.due_date ?? ""}
                 />
               </Field>
-              <Field htmlFor={`panel-priority-${task.id}`} label="優先度">
+              <Field htmlFor={`panel-priority-${task.id}`} label="Priority">
                 <Select
                   id={`panel-priority-${task.id}`}
                   name="priority"
@@ -96,7 +111,7 @@ export function TaskDetailPanel({
                   ))}
                 </Select>
               </Field>
-              <Field htmlFor={`panel-status-${task.id}`} label="ステータス">
+              <Field htmlFor={`panel-status-${task.id}`} label="Status">
                 <Select
                   id={`panel-status-${task.id}`}
                   name="status"

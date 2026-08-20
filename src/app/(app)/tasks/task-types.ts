@@ -1,4 +1,10 @@
-import type { Company, Deal, Task } from "@/lib/types";
+import type { Company, Deal, Task, TaskAssignee } from "@/lib/types";
+
+// 担当者アイコン用の顔写真（public/avatars/）。担当者は固定2名のためハードコードでよい。
+export const TASK_ASSIGNEE_AVATAR: Record<TaskAssignee, string> = {
+  ishida: "/avatars/ishida.jpg",
+  yamaji: "/avatars/yamaji.jpg",
+};
 
 export type DealOption = Pick<Deal, "id" | "title"> & {
   companies: Pick<Company, "name"> | null;
