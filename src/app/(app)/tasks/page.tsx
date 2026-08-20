@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   TASK_PRIORITY_DOT,
@@ -53,6 +54,7 @@ import { TaskModalTrigger } from "./task-modal";
 import { TaskDetailPanel } from "./task-panel";
 import {
   companyNameOf,
+  TASK_ASSIGNEE_AVATAR,
   TASK_WITH_COMPANY_SELECT,
   type DealOption,
   type TaskWithCompany,
@@ -277,11 +279,11 @@ function TaskTable({
               <TH className="w-12">
                 <span className="sr-only">完了</span>
               </TH>
-              <TH>タスク名</TH>
-              <TH className="w-44">担当者</TH>
-              <TH className="w-36">期日</TH>
-              <TH className="w-24">優先度</TH>
-              <TH className="w-32">ステータス</TH>
+              <TH>Task name</TH>
+              <TH className="w-44">Assignee</TH>
+              <TH className="w-36">Due date</TH>
+              <TH className="w-24">Priority</TH>
+              <TH className="w-32">Status</TH>
             </TR>
           </THead>
           <TBody>
@@ -294,14 +296,24 @@ function TaskTable({
                   <TaskTitle task={t} href={taskHref(t.id)} />
                 </TD>
                 <TD>
-                  <InlineSelect
-                    taskId={t.id}
-                    value={t.assignee ?? "ishida"}
-                    options={ASSIGNEE_OPTIONS}
-                    action={updateTaskAssignee}
-                    ariaLabel={`「${t.title}」の担当者`}
-                    className="text-ink"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Image
+                      src={TASK_ASSIGNEE_AVATAR[t.assignee ?? "ishida"]}
+                      alt=""
+                      width={20}
+                      height={20}
+                      unoptimized
+                      className="h-5 w-5 shrink-0 rounded-full object-cover"
+                    />
+                    <InlineSelect
+                      taskId={t.id}
+                      value={t.assignee ?? "ishida"}
+                      options={ASSIGNEE_OPTIONS}
+                      action={updateTaskAssignee}
+                      ariaLabel={`「${t.title}」の担当者`}
+                      className="text-ink"
+                    />
+                  </div>
                 </TD>
                 <TD>
                   <InlineDateInput
@@ -353,14 +365,24 @@ function TaskTable({
               </div>
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <InlineSelect
-                taskId={t.id}
-                value={t.assignee ?? "ishida"}
-                options={ASSIGNEE_OPTIONS}
-                action={updateTaskAssignee}
-                ariaLabel={`「${t.title}」の担当者`}
-                className="border-line bg-surface text-ink"
-              />
+              <div className="flex items-center gap-1.5 rounded-md border border-line bg-surface px-1.5">
+                <Image
+                  src={TASK_ASSIGNEE_AVATAR[t.assignee ?? "ishida"]}
+                  alt=""
+                  width={20}
+                  height={20}
+                  unoptimized
+                  className="h-5 w-5 shrink-0 rounded-full object-cover"
+                />
+                <InlineSelect
+                  taskId={t.id}
+                  value={t.assignee ?? "ishida"}
+                  options={ASSIGNEE_OPTIONS}
+                  action={updateTaskAssignee}
+                  ariaLabel={`「${t.title}」の担当者`}
+                  className="text-ink"
+                />
+              </div>
               <InlineDateInput
                 taskId={t.id}
                 value={t.due_date ?? ""}
