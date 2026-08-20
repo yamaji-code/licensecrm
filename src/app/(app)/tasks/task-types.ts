@@ -1,9 +1,11 @@
 import type { Company, Deal, Task, TaskAssignee } from "@/lib/types";
 
 // 担当者アイコン用の顔写真（public/avatars/）。担当者は固定2名のためハードコードでよい。
+// ファイル名に -v2 を付けているのは、差し替え後もブラウザ/CDNのキャッシュで古い画像が
+// 残ってしまう問題を避けるため（同じファイル名だとキャッシュが更新されないことがある）。
 export const TASK_ASSIGNEE_AVATAR: Record<TaskAssignee, string> = {
-  ishida: "/avatars/ishida.jpg",
-  yamaji: "/avatars/yamaji.jpg",
+  ishida: "/avatars/ishida-v2.jpg",
+  yamaji: "/avatars/yamaji-v2.jpg",
 };
 
 export type DealOption = Pick<Deal, "id" | "title"> & {
