@@ -1,9 +1,13 @@
-import { PARTNER_TYPE_STYLE, REFERRAL_DIRECTION_STYLE } from "@/components/badges";
+import {
+  PARTNER_RANK_STYLE,
+  PARTNER_STAGE_STYLE,
+  REFERRAL_DIRECTION_STYLE,
+} from "@/components/badges";
 import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createReferral, updatePartner } from "../actions";
+import { createReferral, updatePartner, updatePartnerStage } from "../actions";
 import {
   ButtonLink,
   Card,
@@ -22,7 +26,8 @@ import {
 import {
   DEAL_CHANNEL,
   DEAL_STAGE,
-  PARTNER_TYPE,
+  PARTNER_RANK,
+  PARTNER_STAGE,
   REFERRAL_DIRECTION,
   type Company,
   type Deal,
@@ -97,15 +102,26 @@ export default async function PartnerDetailPage({
       <PageHeader
         title={partner.name}
         meta={
-          <span
-            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-              PARTNER_TYPE_STYLE[partner.partner_type]
-            }`}
-          >
-            {PARTNER_TYPE[partner.partner_type]}
+          <span className="flex items-center gap-1.5">
+            <span
+              className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                PARTNER_STAGE_STYLE[partner.stage]
+              }`}
+            >
+              {PARTNER_STAGE[partner.stage]}
+            </span>
+            {partner.rank && (
+              <span
+                className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                  PARTNER_RANK_STYLE[partner.rank]
+                }`}
+              >
+                ランク {PARTNER_RANK[partner.rank]}
+              </span>
+            )}
           </span>
         }
-        description={partner.name_kana ?? undefined}
+        description={partner.company_name ?? undefined}
         back={
           <Link
             href="/partners"
@@ -117,6 +133,27 @@ export default async function PartnerDetailPage({
       />
 
       <div className="space-y-6">
+        {/* ステータス（看板の列に相当）はここだけで素早く切り替える */}
+        <Card>
+          <CardBody className="flex flex-wrap items-center gap-3">
+            <form action={updatePartnerStage} className="flex items-center gap-2">
+              <input type="hidden" name="id" value={partner.id} />
+              <Field htmlFor="stage" label="ステータス">
+                <Select id="stage" name="stage" defaultValue={partner.stage}>
+                  {Object.entries(PARTNER_STAGE).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <SubmitButton size="sm" pendingLabel="変更中…">
+                変更
+              </SubmitButton>
+            </form>
+          </CardBody>
+        </Card>
+
         {/* 基本情報（編集可） */}
         <Card>
           <CardHeader title="基本情報" />
@@ -124,25 +161,52 @@ export default async function PartnerDetailPage({
             <form action={updatePartner} className="space-y-5">
               <input type="hidden" name="id" value={partner.id} />
 
-              <Field htmlFor="name" label="パートナー名" required>
+              <Field htmlFor="name" label="名前" required>
                 <Input id="name" name="name" required defaultValue={partner.name} />
               </Field>
 
+              <Field htmlFor="company_name" label="法人名">
+                <Input
+                  id="company_name"
+                  name="company_name"
+                  defaultValue={partner.company_name ?? ""}
+                />
+              </Field>
+
               <div className="grid gap-5 sm:grid-cols-2">
-                <Field htmlFor="name_kana" label="パートナー名（かな）">
+                <Field htmlFor="phone" label="電話番号">
+                  <Input id="phone" name="phone" defaultValue={partner.phone ?? ""} />
+                </Field>
+                <Field htmlFor="email" label="メールアドレス">
                   <Input
-                    id="name_kana"
-                    name="name_kana"
-                    defaultValue={partner.name_kana ?? ""}
+                    id="email"
+                    name="email"
+                    type="email"
+                    defaultValue={partner.email ?? ""}
                   />
                 </Field>
-                <Field htmlFor="partner_type" label="種別">
-                  <Select
-                    id="partner_type"
-                    name="partner_type"
-                    defaultValue={partner.partner_type}
-                  >
-                    {Object.entries(PARTNER_TYPE).map(([value, label]) => (
+              </div>
+
+              <Field htmlFor="referred_by" label="誰からの紹介か">
+                <Input
+                  id="referred_by"
+                  name="referred_by"
+                  defaultValue={partner.referred_by ?? ""}
+                />
+              </Field>
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field htmlFor="specialty" label="得意領域">
+                  <Input
+                    id="specialty"
+                    name="specialty"
+                    defaultValue={partner.specialty ?? ""}
+                  />
+                </Field>
+                <Field htmlFor="rank" label="ランク">
+                  <Select id="rank" name="rank" defaultValue={partner.rank ?? ""}>
+                    <option value="">（未設定）</option>
+                    {Object.entries(PARTNER_RANK).map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
                       </option>
@@ -151,25 +215,12 @@ export default async function PartnerDetailPage({
                 </Field>
               </div>
 
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field htmlFor="contact_name" label="窓口担当者名">
-                  <Input
-                    id="contact_name"
-                    name="contact_name"
-                    defaultValue={partner.contact_name ?? ""}
-                  />
-                </Field>
-                <Field htmlFor="phone" label="電話番号">
-                  <Input id="phone" name="phone" defaultValue={partner.phone ?? ""} />
-                </Field>
-              </div>
-
-              <Field htmlFor="email" label="メール">
+              <Field htmlFor="referral_fee" label="紹介手数料">
                 <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  defaultValue={partner.email ?? ""}
+                  id="referral_fee"
+                  name="referral_fee"
+                  placeholder="例: 契約額の10%"
+                  defaultValue={partner.referral_fee ?? ""}
                 />
               </Field>
 

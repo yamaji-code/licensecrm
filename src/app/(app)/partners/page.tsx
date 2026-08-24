@@ -1,4 +1,4 @@
-import { PARTNER_TYPE_STYLE } from "@/components/badges";
+import { PARTNER_STAGE_STYLE } from "@/components/badges";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 // 分母 0 を "—" に落とす成約率の整形は KPI 側と同一実装なので共通関数を使う
@@ -18,7 +18,7 @@ import {
   Table,
 } from "@/components/ui";
 import {
-  PARTNER_TYPE,
+  PARTNER_STAGE,
   type DealKpiFact,
   type Partner,
   type Referral,
@@ -130,8 +130,8 @@ export default async function PartnersPage() {
             <Table caption="パートナーの一覧と紹介実績">
               <THead>
                 <TR className="hover:bg-transparent">
-                  <TH>パートナー名</TH>
-                  <TH>種別</TH>
+                  <TH>名前</TH>
+                  <TH>ステータス</TH>
                   <TH numeric>紹介された</TH>
                   <TH numeric>紹介した</TH>
                   <TH>紹介経由の案件</TH>
@@ -148,19 +148,19 @@ export default async function PartnersPage() {
                       >
                         {row.partner.name}
                       </Link>
-                      {row.partner.name_kana && (
+                      {row.partner.company_name && (
                         <p className="text-xs text-ink-faint">
-                          {row.partner.name_kana}
+                          {row.partner.company_name}
                         </p>
                       )}
                     </TD>
                     <TD>
                       <span
                         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                          PARTNER_TYPE_STYLE[row.partner.partner_type]
+                          PARTNER_STAGE_STYLE[row.partner.stage]
                         }`}
                       >
-                        {PARTNER_TYPE[row.partner.partner_type]}
+                        {PARTNER_STAGE[row.partner.stage]}
                       </span>
                     </TD>
                     <TD numeric className="text-ink-soft">
@@ -193,18 +193,18 @@ export default async function PartnersPage() {
                       <span className="block font-medium text-ink">
                         {row.partner.name}
                       </span>
-                      {row.partner.name_kana && (
+                      {row.partner.company_name && (
                         <span className="block text-xs text-ink-faint">
-                          {row.partner.name_kana}
+                          {row.partner.company_name}
                         </span>
                       )}
                     </span>
                     <span
                       className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                        PARTNER_TYPE_STYLE[row.partner.partner_type]
+                        PARTNER_STAGE_STYLE[row.partner.stage]
                       }`}
                     >
-                      {PARTNER_TYPE[row.partner.partner_type]}
+                      {PARTNER_STAGE[row.partner.stage]}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-ink-soft">

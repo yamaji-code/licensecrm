@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
-  PARTNER_TYPE,
+  PARTNER_RANK,
+  PARTNER_STAGE,
   REFERRAL_DIRECTION,
-  type PartnerType,
+  type PartnerRank,
+  type PartnerStage,
   type ReferralDirection,
 } from "@/lib/types";
 
@@ -18,12 +20,12 @@ function str(value: FormDataEntryValue | null): string | null {
 export async function createPartner(formData: FormData) {
   const name = str(formData.get("name"));
   if (!name) {
-    throw new Error("パートナー名は必須です。");
+    throw new Error("名前は必須です。");
   }
 
-  const partnerType = String(formData.get("partner_type") ?? "company");
-  if (!(partnerType in PARTNER_TYPE)) {
-    throw new Error("種別の値が不正です。");
+  const rank = str(formData.get("rank"));
+  if (rank && !(rank in PARTNER_RANK)) {
+    throw new Error("ランクの値が不正です。");
   }
 
   const supabase = await createClient();
@@ -33,11 +35,13 @@ export async function createPartner(formData: FormData) {
 
   const { error } = await supabase.from("partners").insert({
     name,
-    name_kana: str(formData.get("name_kana")),
-    partner_type: partnerType as PartnerType,
-    contact_name: str(formData.get("contact_name")),
-    email: str(formData.get("email")),
+    company_name: str(formData.get("company_name")),
     phone: str(formData.get("phone")),
+    email: str(formData.get("email")),
+    referred_by: str(formData.get("referred_by")),
+    specialty: str(formData.get("specialty")),
+    rank: rank as PartnerRank | null,
+    referral_fee: str(formData.get("referral_fee")),
     note: str(formData.get("note")),
     owner_id: user?.id ?? null,
   });
@@ -58,12 +62,12 @@ export async function updatePartner(formData: FormData) {
 
   const name = str(formData.get("name"));
   if (!name) {
-    throw new Error("パートナー名は必須です。");
+    throw new Error("名前は必須です。");
   }
 
-  const partnerType = String(formData.get("partner_type") ?? "company");
-  if (!(partnerType in PARTNER_TYPE)) {
-    throw new Error("種別の値が不正です。");
+  const rank = str(formData.get("rank"));
+  if (rank && !(rank in PARTNER_RANK)) {
+    throw new Error("ランクの値が不正です。");
   }
 
   const supabase = await createClient();
@@ -71,11 +75,13 @@ export async function updatePartner(formData: FormData) {
     .from("partners")
     .update({
       name,
-      name_kana: str(formData.get("name_kana")),
-      partner_type: partnerType as PartnerType,
-      contact_name: str(formData.get("contact_name")),
-      email: str(formData.get("email")),
+      company_name: str(formData.get("company_name")),
       phone: str(formData.get("phone")),
+      email: str(formData.get("email")),
+      referred_by: str(formData.get("referred_by")),
+      specialty: str(formData.get("specialty")),
+      rank: rank as PartnerRank | null,
+      referral_fee: str(formData.get("referral_fee")),
       note: str(formData.get("note")),
     })
     .eq("id", id);
@@ -87,6 +93,32 @@ export async function updatePartner(formData: FormData) {
   revalidatePath(`/partners/${id}`);
   revalidatePath("/partners");
   redirect(`/partners/${id}`);
+}
+
+// ステータス（看板の列に相当）だけを変更する軽量な更新。基本情報フォームとは別に、
+// 一覧や詳細ページから素早く切り替えられるようにする。
+export async function updatePartnerStage(formData: FormData) {
+  const id = str(formData.get("id"));
+  if (!id) {
+    throw new Error("パートナーIDが不正です。");
+  }
+  const stage = String(formData.get("stage") ?? "");
+  if (!(stage in PARTNER_STAGE)) {
+    throw new Error("ステータスの値が不正です。");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("partners")
+    .update({ stage: stage as PartnerStage })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/partners/${id}`);
+  revalidatePath("/partners");
 }
 
 export async function createReferral(formData: FormData) {
