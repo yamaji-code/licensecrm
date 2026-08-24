@@ -29,7 +29,7 @@ export default async function CompaniesPage() {
   return (
     <PageShell>
       <PageHeader
-        title="取引先・顧客"
+        title="取引先"
         meta={`${companies.length} 社`}
         actions={
           <ButtonLink href="/companies/new" variant="primary">
