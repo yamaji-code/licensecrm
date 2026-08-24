@@ -98,7 +98,7 @@ const NAV_GROUPS = [
   {
     label: "台帳",
     items: [
-      { href: "/companies", label: "取引先・顧客", Icon: CompaniesIcon },
+      { href: "/companies", label: "取引先", Icon: CompaniesIcon },
       { href: "/partners", label: "パートナー", Icon: PartnersIcon },
     ],
   },

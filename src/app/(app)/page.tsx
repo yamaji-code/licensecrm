@@ -318,7 +318,7 @@ export default async function Dashboard() {
             href="/companies"
             className="rounded-card border border-line bg-white px-5 py-4 shadow-card transition-colors hover:border-brand-200"
           >
-            <p className="text-xs text-ink-soft">取引先・顧客</p>
+            <p className="text-xs text-ink-soft">取引先</p>
             <p className="mt-1 text-2xl font-medium text-ink">
               {companyCount ?? 0}
               <span className="ml-1 text-sm font-normal text-ink-faint">社</span>
