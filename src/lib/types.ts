@@ -140,13 +140,23 @@ export const DEPARTMENT = {
 } as const;
 export type Department = keyof typeof DEPARTMENT;
 
-export const PARTNER_TYPE = {
-  maker: "メーカー",
-  wholesaler: "卸",
-  company: "他企業",
-  customer: "既存顧客",
+export const PARTNER_RANK = {
+  S: "S",
+  A: "A",
+  B: "B",
+  C: "C",
 } as const;
-export type PartnerType = keyof typeof PARTNER_TYPE;
+export type PartnerRank = keyof typeof PARTNER_RANK;
+
+// 案件のステージに相当する、パートナーとの関係性の状態。
+// 看板（ドラッグ&ドロップ）UIは今回作らず、バッジ表示と絞り込みのみで使う。
+export const PARTNER_STAGE = {
+  initial_mtg: "初回mtg",
+  active: "アクティブ",
+  follow_up: "要フォロー",
+  pending: "ペンディング",
+} as const;
+export type PartnerStage = keyof typeof PARTNER_STAGE;
 
 export const REFERRAL_DIRECTION = {
   received: "紹介された",
@@ -308,12 +318,15 @@ export type Task = {
 export type Partner = {
   id: string;
   name: string;
-  name_kana: string | null;
-  partner_type: PartnerType;
   company_id: string | null;
-  contact_name: string | null;
+  company_name: string | null;
   email: string | null;
   phone: string | null;
+  referred_by: string | null;
+  specialty: string | null;
+  rank: PartnerRank | null;
+  referral_fee: string | null;
+  stage: PartnerStage;
   note: string | null;
   owner_id: string | null;
   created_at: string;

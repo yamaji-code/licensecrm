@@ -59,11 +59,21 @@ export const KNOWLEDGE_STATUS_STYLE: Record<string, string> = {
   published: "bg-emerald-50 text-emerald-700",
 };
 
-export const PARTNER_TYPE_STYLE: Record<string, string> = {
-  maker: "bg-brand-100 text-brand-800",
-  wholesaler: "bg-brand-50 text-brand-700",
-  company: "bg-surface text-ink-soft",
-  customer: "bg-emerald-50 text-emerald-700",
+// パートナーの関係性ステータス: 初回mtgは中立、アクティブ=良好、要フォロー=要対応、
+// ペンディング=保留（他のバッジと同じ配色の規律に合わせる）
+export const PARTNER_STAGE_STYLE: Record<string, string> = {
+  initial_mtg: "bg-surface text-ink-soft",
+  active: "bg-emerald-50 text-emerald-700",
+  follow_up: "bg-amber-50 text-amber-700",
+  pending: "bg-rose-50 text-rose-700",
+};
+
+// ランクは上位ほど濃く強調する
+export const PARTNER_RANK_STYLE: Record<string, string> = {
+  S: "bg-brand-700 text-white",
+  A: "bg-brand-100 text-brand-800",
+  B: "bg-surface text-ink-soft",
+  C: "bg-surface text-ink-faint",
 };
 
 // 紹介の方向: 紹介された（受け取り）=獲得系の emerald、紹介した=ブランド色
