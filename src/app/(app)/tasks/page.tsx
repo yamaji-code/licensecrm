@@ -50,6 +50,7 @@ import {
   updateTaskStatus,
 } from "./actions";
 import { InlineDateInput, InlineSelect } from "./inline-fields";
+import { DraggableTask, DropDay } from "./task-dnd";
 import { TaskModalTrigger } from "./task-modal";
 import { TaskDetailPanel } from "./task-panel";
 import {
@@ -214,7 +215,7 @@ function TaskChip({
     done ? "text-ink-faint line-through" : "text-ink"
   }`;
   return (
-    <li className="flex items-center gap-1 rounded-md border border-line bg-white px-1 py-0.5">
+    <div className="flex items-center gap-1 rounded-md border border-line bg-white px-1 py-0.5">
       <DoneToggle task={task} action={action} />
       <div className="min-w-0 flex-1">
         {task.deal_id ? (
@@ -240,7 +241,7 @@ function TaskChip({
       >
         {TASK_PRIORITY[task.priority]}
       </span>
-    </li>
+    </div>
   );
 }
 
@@ -801,16 +802,25 @@ export default async function TasksPage({
               </p>
               <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                 {noDueTasks.map((t) => (
-                  <TaskChip key={t.id} task={t} action={markDone} />
+                  <DraggableTask key={t.id} taskId={t.id} as="li">
+                    <TaskChip task={t} action={markDone} />
+                  </DraggableTask>
                 ))}
               </ul>
             </div>
           )}
+          {/* ドラッグしてタスクを別の日に移動すると期日が変わる（案件のタスクは
+              期日必須のため空欄には落とせない仕様に合わせている）。 */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-7">
             {calendarDays.map((d) => {
               const dayTasks = tasksByDate.get(d) ?? [];
               return (
-                <div key={d} className="min-w-0">
+                <DropDay
+                  key={d}
+                  date={d}
+                  action={updateTaskDueDate}
+                  className="min-w-0 rounded-md"
+                >
                   <p
                     className={`mb-1.5 text-xs font-medium ${
                       d === today ? "text-brand-700" : "text-ink-soft"
@@ -823,11 +833,13 @@ export default async function TasksPage({
                   ) : (
                     <ul className="space-y-1.5">
                       {dayTasks.map((t) => (
-                        <TaskChip key={t.id} task={t} action={markDone} />
+                        <DraggableTask key={t.id} taskId={t.id} as="li">
+                          <TaskChip task={t} action={markDone} />
+                        </DraggableTask>
                       ))}
                     </ul>
                   )}
-                </div>
+                </DropDay>
               );
             })}
           </div>
@@ -843,18 +855,24 @@ export default async function TasksPage({
               </p>
               <ul className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                 {noDueTasks.map((t) => (
-                  <TaskChip key={t.id} task={t} action={markDone} />
+                  <DraggableTask key={t.id} taskId={t.id} as="li">
+                    <TaskChip task={t} action={markDone} />
+                  </DraggableTask>
                 ))}
               </ul>
             </div>
           )}
+          {/* ドラッグしてタスクを別の日に移動すると期日が変わる（案件のタスクは
+              期日必須のため空欄には落とせない仕様に合わせている）。 */}
           <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
             {calendarDays.map((d) => {
               const dayTasks = tasksByDate.get(d) ?? [];
               const inMonth = d.slice(0, 7) === anchorDate.slice(0, 7);
               return (
-                <div
+                <DropDay
                   key={d}
+                  date={d}
+                  action={updateTaskDueDate}
                   className={`flex min-h-28 flex-col rounded-md border p-1 sm:p-1.5 ${
                     d === today
                       ? "border-brand-300 bg-brand-50"
@@ -894,29 +912,31 @@ export default async function TasksPage({
                       }`;
                       return (
                         <li key={t.id}>
-                          {t.deal_id ? (
-                            <Link href={`/deals/${t.deal_id}`} className={rowClassName}>
-                              {dot}
-                              <span className="truncate">{t.title}</span>
-                            </Link>
-                          ) : (
-                            <TaskModalTrigger
-                              trigger={
-                                <span className="flex items-center gap-1">
-                                  {dot}
-                                  <span className="truncate">{t.title}</span>
-                                </span>
-                              }
-                              triggerClassName={rowClassName}
-                            >
-                              <TaskDetail task={t} action={markDone} />
-                            </TaskModalTrigger>
-                          )}
+                          <DraggableTask taskId={t.id}>
+                            {t.deal_id ? (
+                              <Link href={`/deals/${t.deal_id}`} className={rowClassName}>
+                                {dot}
+                                <span className="truncate">{t.title}</span>
+                              </Link>
+                            ) : (
+                              <TaskModalTrigger
+                                trigger={
+                                  <span className="flex items-center gap-1">
+                                    {dot}
+                                    <span className="truncate">{t.title}</span>
+                                  </span>
+                                }
+                                triggerClassName={rowClassName}
+                              >
+                                <TaskDetail task={t} action={markDone} />
+                              </TaskModalTrigger>
+                            )}
+                          </DraggableTask>
                         </li>
                       );
                     })}
                   </ul>
-                </div>
+                </DropDay>
               );
             })}
           </div>
