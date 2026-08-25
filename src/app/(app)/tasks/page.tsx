@@ -422,10 +422,16 @@ export default async function TasksPage({
     range?: string | string[];
     date?: string | string[];
     task?: string | string[];
+    completed?: string | string[];
   }>;
 }) {
-  const { view, range: rangeParam, date: dateParam, task: taskParam } =
-    await searchParams;
+  const {
+    view,
+    range: rangeParam,
+    date: dateParam,
+    task: taskParam,
+    completed: completedParam,
+  } = await searchParams;
   const first = (v?: string | string[]) => (Array.isArray(v) ? v[0] : v);
   const showDone = first(view) === "done";
   const rangeRaw = first(rangeParam);
@@ -435,14 +441,19 @@ export default async function TasksPage({
       : "list";
   const anchorDate = first(dateParam) || jstDateString();
   const selectedTaskId = first(taskParam) || null;
+  // カレンダー表示（日/週/月）でだけ使う「完了済みも表示」トグル。
+  // リスト表示の showDone（完了済みのみに絞り込む）とは違い、こちらは未完了に
+  // 完了済みを足して一緒に出す（完了済みは斜線＝取り消し線で見分ける）。
+  const showCompletedInCalendar = first(completedParam) === "show";
 
   // タスク名クリックで開く右パネル・その閉じるリンクのURLを組み立てる。
-  // 現在の表示形式（view/range/date）は維持したまま task だけ付け外しする。
+  // 現在の表示形式（view/range/date/completed）は維持したまま task だけ付け外しする。
   const baseParams = new URLSearchParams();
   if (showDone) baseParams.set("view", "done");
   if (range !== "list") {
     baseParams.set("range", range);
     baseParams.set("date", anchorDate);
+    if (showCompletedInCalendar) baseParams.set("completed", "show");
   }
   function taskHref(id: string | null): string {
     const params = new URLSearchParams(baseParams);
@@ -451,6 +462,17 @@ export default async function TasksPage({
     }
     const qs = params.toString();
     return qs ? `/tasks?${qs}` : "/tasks";
+  }
+
+  // 「完了済みも表示」トグルのリンク。range/date は維持したまま completed だけ切り替える。
+  function toggleCompletedHref(): string {
+    const params = new URLSearchParams(baseParams);
+    if (showCompletedInCalendar) {
+      params.delete("completed");
+    } else {
+      params.set("completed", "show");
+    }
+    return `/tasks?${params.toString()}`;
   }
 
   const supabase = await createClient();
@@ -472,8 +494,9 @@ export default async function TasksPage({
     .order("created_at", { ascending: false });
   const deals = (dealData ?? []) as DealOption[];
 
-  // カレンダー表示（日/週/月）: 表示期間内の未完了タスク＋期限なしの未完了タスクを取得する。
-  // 完了済みはスケジュールの対象外なのでカレンダーには出さない（リスト表示側で確認する）。
+  // カレンダー表示（日/週/月）: 表示期間内のタスク＋期限なしのタスクを取得する。
+  // 既定では完了済みを除外するが、showCompletedInCalendar が有効なら含める
+  // （完了済みは斜線＝取り消し線で見分けられるようにする）。
   let calendarDays: string[] = [];
   const tasksByDate = new Map<string, TaskWithCompany[]>();
   let noDueTasks: TaskWithCompany[] = [];
@@ -520,19 +543,20 @@ export default async function TasksPage({
     const rangeStart = calendarDays[0];
     const rangeEnd = calendarDays[calendarDays.length - 1];
 
+    const rangeQuery = supabase
+      .from("tasks")
+      .select("*, companies ( name ), deals ( companies ( name ) )")
+      .gte("due_date", rangeStart)
+      .lte("due_date", rangeEnd);
+    const noDueQuery = supabase
+      .from("tasks")
+      .select("*, companies ( name ), deals ( companies ( name ) )")
+      .is("due_date", null);
+
     const [{ data: rangeData, error }, { data: noDueData }] =
       await Promise.all([
-        supabase
-          .from("tasks")
-          .select("*, companies ( name ), deals ( companies ( name ) )")
-          .neq("status", "done")
-          .gte("due_date", rangeStart)
-          .lte("due_date", rangeEnd),
-        supabase
-          .from("tasks")
-          .select("*, companies ( name ), deals ( companies ( name ) )")
-          .neq("status", "done")
-          .is("due_date", null),
+        showCompletedInCalendar ? rangeQuery : rangeQuery.neq("status", "done"),
+        showCompletedInCalendar ? noDueQuery : noDueQuery.neq("status", "done"),
       ]);
     calendarError = error?.message ?? null;
 
@@ -648,7 +672,16 @@ export default async function TasksPage({
               次 →
             </ButtonLink>
           </div>
-          <p className="text-sm font-medium text-ink">{rangeLabel}</p>
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-medium text-ink">{rangeLabel}</p>
+            <ButtonLink
+              href={toggleCompletedHref()}
+              variant={showCompletedInCalendar ? "primary" : "secondary"}
+              size="sm"
+            >
+              完了済みも表示
+            </ButtonLink>
+          </div>
         </div>
       )}
 
@@ -847,13 +880,18 @@ export default async function TasksPage({
                       案件に紐づくタスクは案件ページへ、紐づかないタスクはモーダル編集へ */}
                   <ul className="mt-1 max-h-40 space-y-0.5 overflow-y-auto">
                     {dayTasks.map((t) => {
+                      const done = t.status === "done";
                       const dot = (
                         <span
                           aria-hidden="true"
                           className={`h-1 w-1 shrink-0 rounded-full ${TASK_PRIORITY_DOT[t.priority]}`}
                         />
                       );
-                      const rowClassName = `flex w-full items-center gap-1 text-left text-[9px] leading-tight hover:underline ${TASK_PRIORITY_STYLE[t.priority]}`;
+                      // 完了済みは斜線（取り消し線）で見分ける。優先度の色は未完了の時だけ使う
+                      // （色クラスを二重に指定するとTailwindの生成順によって競合するため）。
+                      const rowClassName = `flex w-full items-center gap-1 text-left text-[9px] leading-tight hover:underline ${
+                        done ? "text-ink-faint line-through" : TASK_PRIORITY_STYLE[t.priority]
+                      }`;
                       return (
                         <li key={t.id}>
                           {t.deal_id ? (
