@@ -30,6 +30,16 @@ function useInlineChange(taskId: string, action: FieldAction) {
   return { isPending, onChange };
 }
 
+function usePendingAction(taskId: string, action: FieldAction) {
+  const [isPending, startTransition] = useTransition();
+  const commit = (value: string) => {
+    startTransition(() => {
+      action(taskId, value);
+    });
+  };
+  return { isPending, commit };
+}
+
 export function InlineSelect({
   taskId,
   value,
@@ -77,7 +87,18 @@ export function InlineDateInput({
   className?: string;
   ariaLabel: string;
 }) {
-  const { isPending, onChange } = useInlineChange(taskId, action);
+  const { isPending, commit } = usePendingAction(taskId, action);
+  // 日付入力は年/月/日をセグメントごとに複数キーで打ち込む。onChange（1桁変わる
+  // たびに発火する）で毎回保存すると、まだ入力途中の値（例: 年の1桁目だけ打った
+  // 状態）を保存してしまい、しかも保存中は disabled になって残りの桁が打てなく
+  // なる。そのため入力欄を離れた時（blur）か Enter でまとめて保存する。
+  // ブラウザは日付が未確定（入力途中）だと value を空文字にするため、
+  // 空文字や元の値と同じ場合は何もしない。
+  const handleCommit = (v: string) => {
+    if (v && v !== value) {
+      commit(v);
+    }
+  };
   return (
     <input
       key={value}
@@ -85,7 +106,13 @@ export function InlineDateInput({
       aria-label={ariaLabel}
       defaultValue={value}
       disabled={isPending}
-      onChange={(e) => onChange(e.target.value)}
+      onBlur={(e) => handleCommit(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          handleCommit(e.currentTarget.value);
+          e.currentTarget.blur();
+        }
+      }}
       className={[CONTROL, className].filter(Boolean).join(" ")}
     />
   );
