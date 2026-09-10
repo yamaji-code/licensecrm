@@ -310,10 +310,20 @@ export type Task = {
   department: Department | null;
   assignee_id: string | null;
   assignee: TaskAssignee | null;
+  recurrence: TaskRecurrence | null;
   note: string | null;
   created_at: string;
   updated_at: string;
 };
+
+// タスクの繰り返し設定。null = 繰り返しなし。
+export const TASK_RECURRENCE = {
+  daily: "毎日",
+  weekly: "毎週",
+  biweekly: "隔週",
+  monthly: "毎月",
+} as const;
+export type TaskRecurrence = keyof typeof TASK_RECURRENCE;
 
 // タスクのサブタスク（チェックリスト項目）。担当者・期日は持たない軽い項目。
 export type TaskChecklistItem = {

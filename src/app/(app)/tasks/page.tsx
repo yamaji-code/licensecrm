@@ -18,6 +18,7 @@ import {
   compareTaskPriorityThenDueDate,
   TASK_ASSIGNEE,
   TASK_PRIORITY,
+  TASK_RECURRENCE,
   TASK_STATUS,
   type TaskChecklistItem,
 } from "@/lib/types";
@@ -178,6 +179,11 @@ function TaskTitle({
       <div className="flex items-center gap-2">
         {companyNameOf(task) && (
           <p className="truncate text-xs text-ink-faint">{companyNameOf(task)}</p>
+        )}
+        {task.recurrence && (
+          <span className="shrink-0 rounded-full bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-700">
+            {TASK_RECURRENCE[task.recurrence]}
+          </span>
         )}
         {checklist && checklist.total > 0 && (
           <span className="shrink-0 rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-ink-soft">
@@ -503,6 +509,11 @@ export default async function TasksPage({
   }
 
   const supabase = await createClient();
+
+  // 「アプリを開いた時に追いつかせる」方式の繰り返しタスク繰り上げ。
+  // 期限切れの繰り返しタスクを次回分へ進めてから一覧を取得する（cron不要）。
+  // 冪等（既に未来日なら何もしない）なので、レンダー中に呼んでも安全。
+  await supabase.rpc("advance_recurring_tasks");
 
   const selectedTask = selectedTaskId
     ? (
