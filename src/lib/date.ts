@@ -25,6 +25,23 @@ export function addMonths(dateStr: string, months: number): string {
   return new Date(Date.UTC(y, m - 1 + months, d)).toISOString().slice(0, 10);
 }
 
+// 繰り返しタスクを1回分進めた期日を返す（完了時に次回分へ回すために使う）。
+export function nextRecurrenceDate(
+  dateStr: string,
+  recurrence: "daily" | "weekly" | "biweekly" | "monthly",
+): string {
+  switch (recurrence) {
+    case "daily":
+      return addDays(dateStr, 1);
+    case "weekly":
+      return addDays(dateStr, 7);
+    case "biweekly":
+      return addDays(dateStr, 14);
+    case "monthly":
+      return addMonths(dateStr, 1);
+  }
+}
+
 // 日曜始まりの週の開始日（日〜土）
 export function startOfWeek(dateStr: string): string {
   const dow = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
