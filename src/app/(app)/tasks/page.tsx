@@ -19,6 +19,7 @@ import {
   TASK_ASSIGNEE,
   TASK_PRIORITY,
   TASK_STATUS,
+  type TaskChecklistItem,
 } from "@/lib/types";
 import {
   ButtonLink,
@@ -154,7 +155,15 @@ function TaskFields({ task }: { task: TaskWithCompany }) {
 // タスク名クリックで右側のパネルを開く（タイトル・担当者・期日・優先度・ステータス・
 // メモをまとめて確認・編集できる）。案件に紐づくタスクも、パネル内から案件ページへ
 // 移動できるようにしている。
-function TaskTitle({ task, href }: { task: TaskWithCompany; href: string }) {
+function TaskTitle({
+  task,
+  href,
+  checklist,
+}: {
+  task: TaskWithCompany;
+  href: string;
+  checklist?: { done: number; total: number };
+}) {
   const titleClassName = `block truncate text-left hover:text-brand-700 hover:underline ${
     task.status === "done"
       ? "font-medium text-ink-faint line-through"
@@ -166,9 +175,16 @@ function TaskTitle({ task, href }: { task: TaskWithCompany; href: string }) {
       <Link href={href} scroll={false} className={titleClassName}>
         {task.title}
       </Link>
-      {companyNameOf(task) && (
-        <p className="truncate text-xs text-ink-faint">{companyNameOf(task)}</p>
-      )}
+      <div className="flex items-center gap-2">
+        {companyNameOf(task) && (
+          <p className="truncate text-xs text-ink-faint">{companyNameOf(task)}</p>
+        )}
+        {checklist && checklist.total > 0 && (
+          <span className="shrink-0 rounded-full bg-surface px-1.5 py-0.5 text-[10px] font-medium text-ink-soft">
+            サブタスク {checklist.done}/{checklist.total}
+          </span>
+        )}
+      </div>
     </>
   );
 }
@@ -266,10 +282,12 @@ function TaskTable({
   tasks,
   markDone,
   taskHref,
+  checklistProgress,
 }: {
   tasks: TaskWithCompany[];
   markDone: (formData: FormData) => Promise<void>;
   taskHref: (id: string) => string;
+  checklistProgress: Map<string, { done: number; total: number }>;
 }) {
   return (
     <>
@@ -294,7 +312,11 @@ function TaskTable({
                   <DoneToggle task={t} action={markDone} />
                 </TD>
                 <TD>
-                  <TaskTitle task={t} href={taskHref(t.id)} />
+                  <TaskTitle
+                    task={t}
+                    href={taskHref(t.id)}
+                    checklist={checklistProgress.get(t.id)}
+                  />
                 </TD>
                 <TD>
                   <div className="flex items-center gap-2">
@@ -362,7 +384,11 @@ function TaskTable({
                 <DoneToggle task={t} action={markDone} />
               </div>
               <div className="min-w-0 flex-1">
-                <TaskTitle task={t} href={taskHref(t.id)} />
+                <TaskTitle
+                    task={t}
+                    href={taskHref(t.id)}
+                    checklist={checklistProgress.get(t.id)}
+                  />
               </div>
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -487,6 +513,34 @@ export default async function TasksPage({
           .maybeSingle()
       ).data as TaskWithCompany | null
     : null;
+
+  // 選択中タスクのサブタスク（詳細パネル用）
+  const selectedChecklist = selectedTaskId
+    ? (
+        (
+          await supabase
+            .from("task_checklist_items")
+            .select("*")
+            .eq("task_id", selectedTaskId)
+            .order("sort_order", { ascending: true })
+        ).data ?? []
+      ) as TaskChecklistItem[]
+    : [];
+
+  // 一覧の行に「サブタスク 2/5」を出すための集計（テーブルは小さいので全件取得してJS集計）
+  const { data: checklistRows } = await supabase
+    .from("task_checklist_items")
+    .select("task_id, done");
+  const checklistProgress = new Map<string, { done: number; total: number }>();
+  for (const row of (checklistRows ?? []) as {
+    task_id: string;
+    done: boolean;
+  }[]) {
+    const p = checklistProgress.get(row.task_id) ?? { done: 0, total: 0 };
+    p.total += 1;
+    if (row.done) p.done += 1;
+    checklistProgress.set(row.task_id, p);
+  }
 
   // ワンタッチ追記でタスク種別（next action/other task）を選べるようにするための案件一覧
   const { data: dealData } = await supabase
@@ -763,7 +817,12 @@ export default async function TasksPage({
             />
           </Card>
         ) : (
-          <TaskTable tasks={tasks} markDone={markDone} taskHref={taskHref} />
+          <TaskTable
+            tasks={tasks}
+            markDone={markDone}
+            taskHref={taskHref}
+            checklistProgress={checklistProgress}
+          />
         ))}
 
       {range === "day" && (
@@ -773,7 +832,12 @@ export default async function TasksPage({
               <p className="mb-1.5 text-xs font-medium text-ink-soft">
                 期限なし
               </p>
-              <TaskTable tasks={noDueTasks} markDone={markDone} taskHref={taskHref} />
+              <TaskTable
+                tasks={noDueTasks}
+                markDone={markDone}
+                taskHref={taskHref}
+                checklistProgress={checklistProgress}
+              />
             </div>
           )}
           {(tasksByDate.get(anchorDate) ?? []).length === 0 ? (
@@ -788,6 +852,7 @@ export default async function TasksPage({
               tasks={tasksByDate.get(anchorDate) ?? []}
               markDone={markDone}
               taskHref={taskHref}
+              checklistProgress={checklistProgress}
             />
           )}
         </>
@@ -944,7 +1009,11 @@ export default async function TasksPage({
       )}
 
       {selectedTask && (
-        <TaskDetailPanel task={selectedTask} closeHref={taskHref(null)} />
+        <TaskDetailPanel
+          task={selectedTask}
+          checklistItems={selectedChecklist}
+          closeHref={taskHref(null)}
+        />
       )}
     </PageShell>
   );

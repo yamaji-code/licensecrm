@@ -315,6 +315,16 @@ export type Task = {
   updated_at: string;
 };
 
+// タスクのサブタスク（チェックリスト項目）。担当者・期日は持たない軽い項目。
+export type TaskChecklistItem = {
+  id: string;
+  task_id: string;
+  title: string;
+  done: boolean;
+  sort_order: number;
+  created_at: string;
+};
+
 export type Partner = {
   id: string;
   name: string;

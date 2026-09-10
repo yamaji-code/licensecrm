@@ -1,8 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
-import { TASK_ASSIGNEE, TASK_PRIORITY, TASK_STATUS } from "@/lib/types";
+import {
+  TASK_ASSIGNEE,
+  TASK_PRIORITY,
+  TASK_STATUS,
+  type TaskChecklistItem,
+} from "@/lib/types";
 import { Field, Input, Select, SubmitButton, Textarea } from "@/components/ui";
 import { updateTask } from "./actions";
+import { TaskChecklist } from "./task-checklist";
 import {
   companyNameOf,
   TASK_ASSIGNEE_AVATAR,
@@ -17,9 +23,11 @@ import {
  */
 export function TaskDetailPanel({
   task,
+  checklistItems,
   closeHref,
 }: {
   task: TaskWithCompany;
+  checklistItems: TaskChecklistItem[];
   closeHref: string;
 }) {
   return (
@@ -138,6 +146,10 @@ export function TaskDetailPanel({
 
             <SubmitButton pendingLabel="保存中…">保存</SubmitButton>
           </form>
+
+          <div className="mt-6 border-t border-line pt-4">
+            <TaskChecklist taskId={task.id} items={checklistItems} />
+          </div>
         </div>
       </aside>
     </>

@@ -331,3 +331,54 @@ export async function updateTaskDueDate(id: string, dueDate: string) {
   }
   revalidateTaskViews(updated?.deal_id ?? null);
 }
+
+// ===== サブタスク（チェックリスト項目） =====
+
+export async function addChecklistItem(taskId: string, title: string) {
+  const trimmed = title.trim();
+  if (!trimmed) return;
+
+  const supabase = await createClient();
+  // 末尾に追加するため、現在の最大 sort_order の次を採番する
+  const { data: last } = await supabase
+    .from("task_checklist_items")
+    .select("sort_order")
+    .eq("task_id", taskId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error } = await supabase.from("task_checklist_items").insert({
+    task_id: taskId,
+    title: trimmed,
+    sort_order: (last?.sort_order ?? -1) + 1,
+  });
+  if (error) {
+    throw new Error(`サブタスクの追加に失敗しました: ${error.message}`);
+  }
+  revalidatePath("/tasks");
+}
+
+export async function toggleChecklistItem(id: string, done: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("task_checklist_items")
+    .update({ done })
+    .eq("id", id);
+  if (error) {
+    throw new Error(`サブタスクの更新に失敗しました: ${error.message}`);
+  }
+  revalidatePath("/tasks");
+}
+
+export async function deleteChecklistItem(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("task_checklist_items")
+    .delete()
+    .eq("id", id);
+  if (error) {
+    throw new Error(`サブタスクの削除に失敗しました: ${error.message}`);
+  }
+  revalidatePath("/tasks");
+}
