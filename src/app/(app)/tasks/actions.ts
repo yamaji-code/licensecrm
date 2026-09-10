@@ -3,15 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { jstDateString } from "@/lib/date";
+import { jstDateString, nextRecurrenceDate } from "@/lib/date";
 import {
   CLOSED_DEAL_STAGES,
   TASK_ASSIGNEE,
   TASK_PRIORITY,
+  TASK_RECURRENCE,
   TASK_STATUS,
   type DealStage,
   type TaskAssignee,
   type TaskPriority,
+  type TaskRecurrence,
   type TaskStatus,
 } from "@/lib/types";
 
@@ -50,6 +52,11 @@ export async function createTask(formData: FormData) {
     throw new Error("担当者の値が不正です。");
   }
 
+  const recurrenceRaw = str(formData.get("recurrence"));
+  if (recurrenceRaw && !(recurrenceRaw in TASK_RECURRENCE)) {
+    throw new Error("繰り返しの値が不正です。");
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -65,6 +72,7 @@ export async function createTask(formData: FormData) {
     note: str(formData.get("note")),
     assignee_id: user?.id ?? null,
     assignee: (assigneeRaw as TaskAssignee | null) ?? assigneeFromEmail(user?.email),
+    recurrence: recurrenceRaw as TaskRecurrence | null,
   });
 
   if (error) {
@@ -97,12 +105,17 @@ export async function updateTask(formData: FormData) {
   if (!(priority in TASK_PRIORITY)) throw new Error("優先度の値が不正です。");
   if (!(status in TASK_STATUS)) throw new Error("ステータスの値が不正です。");
 
-  // assignee はこのフォームでは任意（案件詳細ページの編集フォームには項目が無いため）。
-  // 送られてきた時だけ更新対象に含める。
+  // assignee / recurrence はこのフォームでは任意（案件詳細ページの編集フォームには項目が
+  // 無いため）。送られてきた時だけ更新対象に含める。
   const hasAssignee = formData.has("assignee");
   const assigneeRaw = str(formData.get("assignee"));
   if (hasAssignee && assigneeRaw && !(assigneeRaw in TASK_ASSIGNEE)) {
     throw new Error("担当者の値が不正です。");
+  }
+  const hasRecurrence = formData.has("recurrence");
+  const recurrenceRaw = str(formData.get("recurrence"));
+  if (hasRecurrence && recurrenceRaw && !(recurrenceRaw in TASK_RECURRENCE)) {
+    throw new Error("繰り返しの値が不正です。");
   }
 
   const supabase = await createClient();
@@ -126,6 +139,9 @@ export async function updateTask(formData: FormData) {
       priority: priority as TaskPriority,
       status: status as TaskStatus,
       ...(hasAssignee ? { assignee: assigneeRaw as TaskAssignee | null } : {}),
+      ...(hasRecurrence
+        ? { recurrence: recurrenceRaw as TaskRecurrence | null }
+        : {}),
     })
     .eq("id", id)
     .select("deal_id")
@@ -200,6 +216,37 @@ export async function quickAddNextAction(formData: FormData) {
 
 export async function toggleTaskDone(id: string, done: boolean) {
   const supabase = await createClient();
+
+  // 繰り返しタスクを「完了」にした時は、完了で止めず期限を次回分へ進めて回し続ける。
+  if (done) {
+    const { data: t } = await supabase
+      .from("tasks")
+      .select("recurrence, due_date, deal_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (t?.recurrence && t.due_date) {
+      const { error } = await supabase
+        .from("tasks")
+        .update({
+          due_date: nextRecurrenceDate(
+            t.due_date as string,
+            t.recurrence as TaskRecurrence,
+          ),
+          status: "todo",
+        })
+        .eq("id", id);
+      if (error) {
+        throw new Error(`更新に失敗しました: ${error.message}`);
+      }
+      revalidatePath("/tasks");
+      if (t.deal_id) {
+        revalidatePath(`/deals/${t.deal_id}`);
+        revalidatePath("/deals");
+      }
+      return;
+    }
+  }
+
   const { data: updated, error } = await supabase
     .from("tasks")
     .update({ status: done ? "done" : "todo" })

@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   TASK_ASSIGNEE,
   TASK_PRIORITY,
+  TASK_RECURRENCE,
   TASK_STATUS,
   type TaskChecklistItem,
 } from "@/lib/types";
@@ -133,6 +134,25 @@ export function TaskDetailPanel({
                 </Select>
               </Field>
             </div>
+
+            <Field
+              htmlFor={`panel-recurrence-${task.id}`}
+              label="繰り返し"
+              hint="期限が過ぎると自動で次回分へ繰り上がる"
+            >
+              <Select
+                id={`panel-recurrence-${task.id}`}
+                name="recurrence"
+                defaultValue={task.recurrence ?? ""}
+              >
+                <option value="">なし</option>
+                {Object.entries(TASK_RECURRENCE).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
 
             <Field htmlFor={`panel-note-${task.id}`} label="メモ">
               <Textarea

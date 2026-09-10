@@ -5,6 +5,7 @@ import { TaskTypeField } from "../task-type-field";
 import {
   TASK_ASSIGNEE,
   TASK_PRIORITY,
+  TASK_RECURRENCE,
   TASK_STATUS,
   type Company,
   type Deal,
@@ -110,6 +111,21 @@ export default async function NewTaskPage({
                 <Input id="due_date" name="due_date" type="date" />
               </Field>
             </div>
+
+            <Field
+              htmlFor="recurrence"
+              label="繰り返し"
+              hint="期限が過ぎると自動で次回分へ繰り上がる"
+            >
+              <Select id="recurrence" name="recurrence" defaultValue="">
+                <option value="">なし</option>
+                {Object.entries(TASK_RECURRENCE).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
 
             <TaskTypeField deals={deals} defaultDealId={presetDealId || null} />
 
