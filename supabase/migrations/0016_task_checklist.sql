@@ -18,13 +18,13 @@ create index task_checklist_items_task_id_idx
 
 alter table public.task_checklist_items enable row level security;
 
-create policy "authenticated can read task_checklist_items"
+create policy checklist_read
   on public.task_checklist_items for select to authenticated using (true);
-create policy "authenticated can write task_checklist_items"
+create policy checklist_insert
   on public.task_checklist_items for insert to authenticated with check (true);
-create policy "authenticated can update task_checklist_items"
+create policy checklist_update
   on public.task_checklist_items for update to authenticated using (true) with check (true);
-create policy "authenticated can delete task_checklist_items"
+create policy checklist_delete
   on public.task_checklist_items for delete to authenticated using (true);
 
 commit;
