@@ -73,7 +73,7 @@ export default async function EditMeetingPage({
   const backLabel = meeting.deal_id ? "← 案件詳細" : "← MTG一覧";
 
   return (
-    <PageShell width="narrow">
+    <PageShell width="default">
       <PageHeader
         title="MTGを編集"
         back={
@@ -88,56 +88,59 @@ export default async function EditMeetingPage({
           <form action={updateMeeting} className="space-y-5">
             <input type="hidden" name="id" value={meeting.id} />
 
-            <Field htmlFor="title" label="MTGタイトル" required>
-              <Input id="title" name="title" required defaultValue={meeting.title} />
-            </Field>
+            {/* 短い項目は幅を絞って読みやすさを保つ（要旨だけカード幅いっぱいに広げる） */}
+            <div className="max-w-2xl space-y-5">
+              <Field htmlFor="title" label="MTGタイトル" required>
+                <Input id="title" name="title" required defaultValue={meeting.title} />
+              </Field>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field htmlFor="format" label="区分" required>
-                <Select id="format" name="format" required defaultValue={meeting.format}>
-                  {Object.entries(MEETING_FORMAT).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field htmlFor="format" label="区分" required>
+                  <Select id="format" name="format" required defaultValue={meeting.format}>
+                    {Object.entries(MEETING_FORMAT).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field htmlFor="held_on" label="実施日" required>
+                  <Input
+                    id="held_on"
+                    name="held_on"
+                    type="date"
+                    required
+                    defaultValue={meeting.held_on.slice(0, 10)}
+                  />
+                </Field>
+              </div>
+
+              <Field htmlFor="deal_id" label="関連する案件">
+                <Select id="deal_id" name="deal_id" defaultValue={meeting.deal_id ?? ""}>
+                  <option value="">（なし）</option>
+                  {deals.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.companies?.name ? `${d.companies.name} / ${d.title}` : d.title}
                     </option>
                   ))}
                 </Select>
               </Field>
-              <Field htmlFor="held_on" label="実施日" required>
-                <Input
-                  id="held_on"
-                  name="held_on"
-                  type="date"
-                  required
-                  defaultValue={meeting.held_on.slice(0, 10)}
-                />
+
+              <Field htmlFor="company_id" label="関連する取引先">
+                <Select id="company_id" name="company_id" defaultValue={meeting.company_id ?? ""}>
+                  <option value="">（なし）</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field htmlFor="attendees" label="参加者">
+                <Input id="attendees" name="attendees" defaultValue={meeting.attendees ?? ""} />
               </Field>
             </div>
-
-            <Field htmlFor="deal_id" label="関連する案件">
-              <Select id="deal_id" name="deal_id" defaultValue={meeting.deal_id ?? ""}>
-                <option value="">（なし）</option>
-                {deals.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.companies?.name ? `${d.companies.name} / ${d.title}` : d.title}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field htmlFor="company_id" label="関連する取引先">
-              <Select id="company_id" name="company_id" defaultValue={meeting.company_id ?? ""}>
-                <option value="">（なし）</option>
-                {companies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field htmlFor="attendees" label="参加者">
-              <Input id="attendees" name="attendees" defaultValue={meeting.attendees ?? ""} />
-            </Field>
 
             <Field
               htmlFor="summary"

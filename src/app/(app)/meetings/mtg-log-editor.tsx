@@ -141,7 +141,7 @@ export function MtgLogEditor({
         ref={textareaRef}
         id={name}
         name={name}
-        rows={6}
+        rows={14}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="話した内容・決めたこと。表は「表を挿入」、写真は「画像を添付」から入れられます。"
