@@ -51,6 +51,7 @@ import {
   updateTaskPriority,
   updateTaskStatus,
 } from "./actions";
+import { DoneToggle } from "./done-toggle";
 import { InlineDateInput, InlineSelect } from "./inline-fields";
 import { DraggableTask, DropDay } from "./task-dnd";
 import { TaskModalTrigger } from "./task-modal";
@@ -83,38 +84,6 @@ function formatJaShort(dateStr: string): string {
  * （aria-label だけだと読み上げで現在の状態が分からない）。
  * 丸印そのものは小さいが、押せる範囲は 40px を確保する。
  */
-function DoneToggle({
-  task,
-  action,
-}: {
-  task: TaskWithCompany;
-  action: (formData: FormData) => Promise<void>;
-}) {
-  const done = task.status === "done";
-  return (
-    <form action={action}>
-      <input type="hidden" name="id" value={task.id} />
-      <input type="hidden" name="done" value={done ? "false" : "true"} />
-      <button
-        type="submit"
-        aria-label={done ? "未完了に戻す" : "完了にする"}
-        aria-pressed={done}
-        className="-m-2 flex h-10 w-10 items-center justify-center rounded-full"
-      >
-        <span
-          className={`flex h-5 w-5 items-center justify-center rounded-full border text-xs ${
-            done
-              ? "border-ok bg-ok text-white"
-              : "border-line text-transparent hover:border-brand-500"
-          }`}
-        >
-          ✓
-        </span>
-      </button>
-    </form>
-  );
-}
-
 // タイトル・優先度・ステータス・期限・メモ。モーダル詳細（週/月カレンダー表示）で使う。
 // リスト/日表示では行内で直接編集できるため使わない。
 function TaskFields({ task }: { task: TaskWithCompany }) {
