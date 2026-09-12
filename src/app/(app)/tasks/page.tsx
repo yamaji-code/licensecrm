@@ -479,10 +479,13 @@ export default async function TasksPage({
 
   const supabase = await createClient();
 
-  // 「アプリを開いた時に追いつかせる」方式の繰り返しタスク繰り上げ。
-  // 期限切れの繰り返しタスクを次回分へ進めてから一覧を取得する（cron不要）。
-  // 冪等（既に未来日なら何もしない）なので、レンダー中に呼んでも安全。
-  await supabase.rpc("advance_recurring_tasks");
+  // 「アプリを開いた時に追いつかせる」方式の繰り返しタスク繰り上げ／期日漏れの
+  // 翌営業日への移動。互いに独立しているので並列で実行する。どちらも書き込みなので、
+  // これらが終わってから一覧を読む（読みと同時に走らせると更新前の値を読む恐れがある）。
+  await Promise.all([
+    supabase.rpc("advance_recurring_tasks"),
+    supabase.rpc("advance_overdue_tasks"),
+  ]);
 
   // 以下4つは互いに独立しているので並列で取得する（順にawaitすると往復回数だけ
   // レイテンシが積み上がり、保存操作のたびに毎回この分だけ待たされることになる）。
