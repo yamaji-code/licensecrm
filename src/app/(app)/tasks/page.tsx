@@ -484,33 +484,40 @@ export default async function TasksPage({
   // 冪等（既に未来日なら何もしない）なので、レンダー中に呼んでも安全。
   await supabase.rpc("advance_recurring_tasks");
 
-  const selectedTask = selectedTaskId
-    ? (
-        await supabase
+  // 以下4つは互いに独立しているので並列で取得する（順にawaitすると往復回数だけ
+  // レイテンシが積み上がり、保存操作のたびに毎回この分だけ待たされることになる）。
+  const [
+    { data: selectedTaskData },
+    { data: selectedChecklistData },
+    { data: checklistRows },
+    { data: dealData },
+  ] = await Promise.all([
+    selectedTaskId
+      ? supabase
           .from("tasks")
           .select(TASK_WITH_COMPANY_SELECT)
           .eq("id", selectedTaskId)
           .maybeSingle()
-      ).data as TaskWithCompany | null
-    : null;
+      : Promise.resolve({ data: null }),
+    // 選択中タスクのサブタスク（詳細パネル用）
+    selectedTaskId
+      ? supabase
+          .from("task_checklist_items")
+          .select("*")
+          .eq("task_id", selectedTaskId)
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: [] }),
+    // 一覧の行に「サブタスク 2/5」を出すための集計（テーブルは小さいので全件取得してJS集計）
+    supabase.from("task_checklist_items").select("task_id, done"),
+    // ワンタッチ追記でタスク種別（next action/other task）を選べるようにするための案件一覧
+    supabase
+      .from("deals")
+      .select("*, companies ( name )")
+      .order("created_at", { ascending: false }),
+  ]);
+  const selectedTask = selectedTaskData as TaskWithCompany | null;
+  const selectedChecklist = (selectedChecklistData ?? []) as TaskChecklistItem[];
 
-  // 選択中タスクのサブタスク（詳細パネル用）
-  const selectedChecklist = selectedTaskId
-    ? (
-        (
-          await supabase
-            .from("task_checklist_items")
-            .select("*")
-            .eq("task_id", selectedTaskId)
-            .order("sort_order", { ascending: true })
-        ).data ?? []
-      ) as TaskChecklistItem[]
-    : [];
-
-  // 一覧の行に「サブタスク 2/5」を出すための集計（テーブルは小さいので全件取得してJS集計）
-  const { data: checklistRows } = await supabase
-    .from("task_checklist_items")
-    .select("task_id, done");
   const checklistProgress = new Map<string, { done: number; total: number }>();
   for (const row of (checklistRows ?? []) as {
     task_id: string;
@@ -522,11 +529,6 @@ export default async function TasksPage({
     checklistProgress.set(row.task_id, p);
   }
 
-  // ワンタッチ追記でタスク種別（next action/other task）を選べるようにするための案件一覧
-  const { data: dealData } = await supabase
-    .from("deals")
-    .select("*, companies ( name )")
-    .order("created_at", { ascending: false });
   const deals = (dealData ?? []) as DealOption[];
 
   // カレンダー表示（日/週/月）: 表示期間内のタスク＋期限なしのタスクを取得する。
