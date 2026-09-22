@@ -43,15 +43,58 @@ export function DraggableTask({
   );
 }
 
+// 「期限切れをまとめて移動」チップがドラッグ中であることを表す印。
+// タスクIDは uuid なので、この値と衝突することはない。
+const OVERDUE_BULK_ID = "__overdue_bulk__";
+
+// 期限切れタスクをまとめて掴めるチップ。日付セルへ落とすと、その日へ全件移す。
+export function OverdueBulkHandle({ count }: { count: number }) {
+  const [dragging, setDragging] = useState(false);
+  return (
+    <span
+      draggable
+      role="button"
+      title="ドラッグして日付セルに落とすと、期限切れのタスクをその日へまとめて移動します"
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", OVERDUE_BULK_ID);
+        e.dataTransfer.effectAllowed = "move";
+        setDragging(true);
+      }}
+      onDragEnd={() => setDragging(false)}
+      className={`inline-flex cursor-grab select-none items-center gap-1.5 rounded-md border border-danger/25 bg-danger-bg px-2 py-1 text-xs font-medium text-danger active:cursor-grabbing ${
+        dragging ? "opacity-40" : ""
+      }`}
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 16 16"
+        className="h-3 w-3"
+        fill="currentColor"
+      >
+        <circle cx="5" cy="4" r="1.3" />
+        <circle cx="11" cy="4" r="1.3" />
+        <circle cx="5" cy="8" r="1.3" />
+        <circle cx="11" cy="8" r="1.3" />
+        <circle cx="5" cy="12" r="1.3" />
+        <circle cx="11" cy="12" r="1.3" />
+      </svg>
+      期限切れ {count} 件をまとめて移動
+    </span>
+  );
+}
+
 // 日付セルをドロップ先にするラッパー。タスクを落とすとその日付に期日を変更する。
+// 「まとめて移動」チップが落ちたときは bulkAction（期限切れ全件をその日へ）を呼ぶ。
 export function DropDay({
   date,
   action,
+  bulkAction,
   children,
   className = "",
 }: {
   date: string;
   action: (taskId: string, date: string) => Promise<void>;
+  bulkAction?: (date: string) => Promise<void>;
   children: ReactNode;
   className?: string;
 }) {
@@ -72,7 +115,12 @@ export function DropDay({
         e.preventDefault();
         setOver(false);
         const id = e.dataTransfer.getData("text/plain");
-        if (id) startTransition(() => action(id, date));
+        if (!id) return;
+        if (id === OVERDUE_BULK_ID) {
+          if (bulkAction) startTransition(() => bulkAction(date));
+          return;
+        }
+        startTransition(() => action(id, date));
       }}
       className={`${className} ${
         over ? "ring-2 ring-inset ring-brand-400" : ""

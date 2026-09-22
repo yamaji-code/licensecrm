@@ -46,6 +46,7 @@ import {
   quickAddNextAction,
   toggleTaskDone,
   updateTask,
+  moveOverdueTasksTo,
   updateTaskAssignee,
   updateTaskDueDate,
   updateTaskPriority,
@@ -53,7 +54,7 @@ import {
 } from "./actions";
 import { DoneToggle } from "./done-toggle";
 import { InlineDateInput, InlineSelect } from "./inline-fields";
-import { DraggableTask, DropDay } from "./task-dnd";
+import { DraggableTask, DropDay, OverdueBulkHandle } from "./task-dnd";
 import { TaskModalTrigger } from "./task-modal";
 import { TaskDetailPanel } from "./task-panel";
 import {
@@ -79,11 +80,6 @@ function formatJaShort(dateStr: string): string {
   return `${d.getUTCMonth() + 1}/${d.getUTCDate()}(${WEEKDAY_JA[d.getUTCDay()]})`;
 }
 
-/**
- * 完了トグル。押すと状態が反転するので aria-pressed で「今どちらか」を伝える
- * （aria-label だけだと読み上げで現在の状態が分からない）。
- * 丸印そのものは小さいが、押せる範囲は 40px を確保する。
- */
 // タイトル・優先度・ステータス・期限・メモ。モーダル詳細（週/月カレンダー表示）で使う。
 // リスト/日表示では行内で直接編集できるため使わない。
 function TaskFields({ task }: { task: TaskWithCompany }) {
@@ -491,6 +487,7 @@ export default async function TasksPage({
     { data: selectedChecklistData },
     { data: checklistRows },
     { data: dealData },
+    { count: overdueCount },
   ] = await Promise.all([
     selectedTaskId
       ? supabase
@@ -514,6 +511,15 @@ export default async function TasksPage({
       .from("deals")
       .select("*, companies ( name )")
       .order("created_at", { ascending: false }),
+    // 「期限切れ N件をまとめて移動」チップ用の件数。表示期間の外にある分も含めて数える
+    // （まとめて移動は表示中の月に関係なく期限切れ全件が対象のため）。
+    supabase
+      .from("tasks")
+      .select("id", { count: "exact", head: true })
+      .neq("status", "done")
+      .not("due_date", "is", null)
+      .is("recurrence", null)
+      .lt("due_date", jstDateString()),
   ]);
   const selectedTask = selectedTaskData as TaskWithCompany | null;
   const selectedChecklist = (selectedChecklistData ?? []) as TaskChecklistItem[];
@@ -709,8 +715,11 @@ export default async function TasksPage({
               次 →
             </ButtonLink>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm font-medium text-ink">{rangeLabel}</p>
+            {range !== "day" && (overdueCount ?? 0) > 0 && (
+              <OverdueBulkHandle count={overdueCount ?? 0} />
+            )}
             <ButtonLink
               href={toggleCompletedHref()}
               variant={showCompletedInCalendar ? "primary" : "secondary"}
@@ -866,6 +875,7 @@ export default async function TasksPage({
                   key={d}
                   date={d}
                   action={updateTaskDueDate}
+                  bulkAction={moveOverdueTasksTo}
                   className="min-w-0 rounded-md"
                 >
                   <p
@@ -920,6 +930,7 @@ export default async function TasksPage({
                   key={d}
                   date={d}
                   action={updateTaskDueDate}
+                  bulkAction={moveOverdueTasksTo}
                   className={`flex min-h-28 flex-col rounded-md border p-1 sm:p-1.5 ${
                     d === today
                       ? "border-brand-300 bg-brand-50"

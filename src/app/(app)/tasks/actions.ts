@@ -299,6 +299,30 @@ function revalidateTaskViews(dealId: string | null) {
   }
 }
 
+// 期日漏れ（未完了・期日が今日より前・繰り返しでない）のタスクを、指定日へまとめて移す。
+// カレンダーの「期限切れ N件」チップを日付セルへドロップしたときに呼ばれる。
+// 繰り返しタスクは次回分へ自動で進む仕組みが別にあるので対象外。
+export async function moveOverdueTasksTo(dueDate: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+    throw new Error("移動先の日付が不正です。");
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("tasks")
+    .update({ due_date: dueDate })
+    .neq("status", "done")
+    .not("due_date", "is", null)
+    .is("recurrence", null)
+    .lt("due_date", jstDateString());
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+  revalidatePath("/tasks");
+  // 案件ごとの next action 表示も変わるので、案件一覧と各案件ページをまとめて再検証する
+  revalidatePath("/deals");
+  revalidatePath("/deals/[id]", "page");
+}
+
 // 一覧の行内で直接変更するための単項目更新。タイトル等は不要なので updateTask とは分けている。
 export async function updateTaskAssignee(id: string, assignee: string) {
   if (assignee !== "" && !(assignee in TASK_ASSIGNEE)) {
