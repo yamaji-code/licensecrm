@@ -52,6 +52,13 @@ export const MEETING_FORMAT_STYLE: Record<string, string> = {
   offline: "bg-surface text-ink-soft",
 };
 
+// MTG LOG の種類。MTG は目立たせず、電話・メモは一目で「商談ではない」と分かる色にする
+export const MEETING_KIND_STYLE: Record<string, string> = {
+  mtg: "bg-brand-700 text-white",
+  call: "bg-emerald-50 text-emerald-700",
+  memo: "bg-amber-50 text-amber-700",
+};
+
 export const KNOWLEDGE_STATUS_STYLE: Record<string, string> = {
   open: "bg-surface text-ink-soft",
   review_requested: "bg-amber-50 text-amber-700",

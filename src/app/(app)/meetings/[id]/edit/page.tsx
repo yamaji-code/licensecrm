@@ -8,6 +8,7 @@ import { TaskTypeField } from "../../../tasks/task-type-field";
 import { jstDateString } from "@/lib/date";
 import {
   MEETING_FORMAT,
+  MEETING_KIND,
   TASK_PRIORITY,
   TASK_STATUS,
   type Company,
@@ -90,7 +91,22 @@ export default async function EditMeetingPage({
 
             {/* 短い項目は幅を絞って読みやすさを保つ（要旨だけカード幅いっぱいに広げる） */}
             <div className="max-w-2xl space-y-5">
-              <Field htmlFor="title" label="MTGタイトル" required>
+              <Field
+                htmlFor="kind"
+                label="種類"
+                required
+                hint="商談数に数えるのは「MTG」だけ。電話や覚え書きは分けて残す"
+              >
+                <Select id="kind" name="kind" required defaultValue={meeting.kind ?? "mtg"}>
+                  {Object.entries(MEETING_KIND).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field htmlFor="title" label="タイトル" required>
                 <Input id="title" name="title" required defaultValue={meeting.title} />
               </Field>
 

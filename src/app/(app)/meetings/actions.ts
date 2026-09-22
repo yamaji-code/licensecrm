@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   MEETING_FORMAT,
+  MEETING_KIND,
   SCENE_TAG,
   type MeetingFormat,
+  type MeetingKind,
   type SceneTag,
 } from "@/lib/types";
 
@@ -27,6 +29,12 @@ export async function createMeeting(formData: FormData) {
   const format = String(formData.get("format") ?? "");
   if (!(format in MEETING_FORMAT)) {
     throw new Error("区分（オンライン/オフライン）の値が不正です。");
+  }
+
+  // 種類（MTG/電話/メモ）。古いフォームから来た場合は従来どおり MTG 扱いにする
+  const kind = String(formData.get("kind") || "mtg");
+  if (!(kind in MEETING_KIND)) {
+    throw new Error("種類（MTG/電話/メモ）の値が不正です。");
   }
 
   const heldOn = str(formData.get("held_on"));
@@ -60,6 +68,7 @@ export async function createMeeting(formData: FormData) {
     .insert({
       title,
       format: format as MeetingFormat,
+      kind: kind as MeetingKind,
       held_on: heldOn,
       deal_id: dealId,
       company_id: companyId,
@@ -119,6 +128,12 @@ export async function updateMeeting(formData: FormData) {
     throw new Error("区分（オンライン/オフライン）の値が不正です。");
   }
 
+  // 種類（MTG/電話/メモ）。古いフォームから来た場合は従来どおり MTG 扱いにする
+  const kind = String(formData.get("kind") || "mtg");
+  if (!(kind in MEETING_KIND)) {
+    throw new Error("種類（MTG/電話/メモ）の値が不正です。");
+  }
+
   const heldOn = str(formData.get("held_on"));
   if (!heldOn) {
     throw new Error("実施日は必須です。");
@@ -133,6 +148,7 @@ export async function updateMeeting(formData: FormData) {
     .update({
       title,
       format: format as MeetingFormat,
+      kind: kind as MeetingKind,
       held_on: heldOn,
       deal_id: dealId,
       company_id: companyId,

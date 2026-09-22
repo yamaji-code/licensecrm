@@ -170,6 +170,14 @@ export const MEETING_FORMAT = {
 } as const;
 export type MeetingFormat = keyof typeof MEETING_FORMAT;
 
+// MTG LOG の種類。商談としての MTG と、電話・覚え書きを分けて数えられるようにする。
+export const MEETING_KIND = {
+  mtg: "MTG",
+  call: "電話",
+  memo: "メモ",
+} as const;
+export type MeetingKind = keyof typeof MEETING_KIND;
+
 export const SCENE_TAG = {
   pb_product: "PB品",
   maker_intro: "メーカー紹介",
@@ -422,6 +430,7 @@ export type Meeting = {
   id: string;
   title: string;
   format: MeetingFormat;
+  kind: MeetingKind;
   held_on: string;
   deal_id: string | null;
   company_id: string | null;
