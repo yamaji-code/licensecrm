@@ -91,12 +91,7 @@ export default async function EditMeetingPage({
 
             {/* 短い項目は幅を絞って読みやすさを保つ（要旨だけカード幅いっぱいに広げる） */}
             <div className="max-w-2xl space-y-5">
-              <Field
-                htmlFor="kind"
-                label="種類"
-                required
-                hint="商談数に数えるのは「MTG」だけ。call・memo は分けて残す"
-              >
+              <Field htmlFor="kind" label="種類" required>
                 <Select id="kind" name="kind" required defaultValue={meeting.kind ?? "mtg"}>
                   {Object.entries(MEETING_KIND).map(([value, label]) => (
                     <option key={value} value={value}>
