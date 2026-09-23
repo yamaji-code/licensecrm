@@ -32,6 +32,8 @@ type MeetingRow = Meeting & {
 };
 
 function FormatBadge({ format }: { format: MeetingRow["format"] }) {
+  // 区分はMTGのときだけ。call📞 / memo は null なので何も出さない
+  if (!format) return null;
   return (
     <span
       className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${

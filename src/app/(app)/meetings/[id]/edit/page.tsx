@@ -2,13 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { updateMeeting } from "../../actions";
+import { KindFormatFields } from "../../kind-format-fields";
 import { MtgLogEditor } from "../../mtg-log-editor";
 import { quickAddNextAction } from "../../../tasks/actions";
 import { TaskTypeField } from "../../../tasks/task-type-field";
 import { jstDateString } from "@/lib/date";
 import {
-  MEETING_FORMAT,
-  MEETING_KIND,
   TASK_PRIORITY,
   TASK_STATUS,
   type Company,
@@ -91,15 +90,10 @@ export default async function EditMeetingPage({
 
             {/* 短い項目は幅を絞って読みやすさを保つ（要旨だけカード幅いっぱいに広げる） */}
             <div className="max-w-2xl space-y-5">
-              <Field htmlFor="kind" label="種類" required>
-                <Select id="kind" name="kind" required defaultValue={meeting.kind ?? "mtg"}>
-                  {Object.entries(MEETING_KIND).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              <KindFormatFields
+                defaultKind={meeting.kind ?? "mtg"}
+                defaultFormat={meeting.format ?? ""}
+              />
 
               <Field
                 htmlFor="title"
@@ -109,26 +103,15 @@ export default async function EditMeetingPage({
                 <Input id="title" name="title" defaultValue={meeting.title ?? ""} />
               </Field>
 
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field htmlFor="format" label="区分" required>
-                  <Select id="format" name="format" required defaultValue={meeting.format}>
-                    {Object.entries(MEETING_FORMAT).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field htmlFor="held_on" label="実施日" required>
-                  <Input
-                    id="held_on"
-                    name="held_on"
-                    type="date"
-                    required
-                    defaultValue={meeting.held_on.slice(0, 10)}
-                  />
-                </Field>
-              </div>
+              <Field htmlFor="held_on" label="実施日" required>
+                <Input
+                  id="held_on"
+                  name="held_on"
+                  type="date"
+                  required
+                  defaultValue={meeting.held_on.slice(0, 10)}
+                />
+              </Field>
 
               <Field htmlFor="deal_id" label="関連する案件">
                 <Select id="deal_id" name="deal_id" defaultValue={meeting.deal_id ?? ""}>

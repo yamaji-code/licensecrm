@@ -444,7 +444,8 @@ export type Meeting = {
   id: string;
   /** 任意。未入力のときは種類＋実施日で代替表示する（meetingLabel を使う） */
   title: string | null;
-  format: MeetingFormat;
+  /** 区分はMTGのときだけ。call📞 / memo は null */
+  format: MeetingFormat | null;
   kind: MeetingKind;
   held_on: string;
   deal_id: string | null;
