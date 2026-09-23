@@ -50,6 +50,7 @@ import {
   DEAL_STAGE_ORDER,
   MEETING_FORMAT,
   MEETING_KIND,
+  meetingLabel,
   PB_STATUS,
   SCENE_TAG,
   TASK_PRIORITY,
@@ -646,16 +647,18 @@ export default async function DealDetailPage({
                           >
                             {MEETING_KIND[m.kind ?? "mtg"]}
                           </span>
-                          <span className="font-medium text-ink">{m.title}</span>
+                          <span className="font-medium text-ink">{meetingLabel(m)}</span>
                         </span>
                         <span className="flex items-center gap-2 text-xs text-ink-soft">
-                          <span
-                            className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                              MEETING_FORMAT_STYLE[m.format]
-                            }`}
-                          >
-                            {MEETING_FORMAT[m.format]}
-                          </span>
+                          {m.format && (
+                            <span
+                              className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                                MEETING_FORMAT_STYLE[m.format]
+                              }`}
+                            >
+                              {MEETING_FORMAT[m.format]}
+                            </span>
+                          )}
                           {m.held_on.slice(0, 10)}
                           <Link
                             href={`/meetings/${m.id}/edit`}

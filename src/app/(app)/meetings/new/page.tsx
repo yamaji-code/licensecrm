@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createMeeting } from "../actions";
+import { KindFormatFields } from "../kind-format-fields";
 import { MtgLogEditor } from "../mtg-log-editor";
 import { quickAddNextAction } from "../../tasks/actions";
 import { TaskTypeField } from "../../tasks/task-type-field";
 import { jstDateString } from "@/lib/date";
 import {
-  MEETING_FORMAT,
   MEETING_KIND,
   SCENE_TAG,
   TASK_PRIORITY,
@@ -93,46 +93,25 @@ export default async function NewMeetingPage({
           <form action={createMeeting} className="space-y-5">
             {/* 短い項目は幅を絞って読みやすさを保つ（要旨だけカード幅いっぱいに広げる） */}
             <div className="max-w-2xl space-y-5">
+              <KindFormatFields defaultKind={presetKind} />
+
               <Field
-                htmlFor="kind"
-                label="種類"
-                required
-                hint="商談数に数えるのは「MTG」だけ。call・memo は分けて残す"
+                htmlFor="title"
+                label="タイトル"
+                hint="未入力の場合は「種類 実施日」で表示されます"
               >
-                <Select id="kind" name="kind" required defaultValue={presetKind}>
-                  {Object.entries(MEETING_KIND).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </Select>
+                <Input id="title" name="title" />
               </Field>
 
-              <Field htmlFor="title" label="タイトル" required>
-                <Input id="title" name="title" required />
+              <Field htmlFor="held_on" label="実施日" required>
+                <Input
+                  id="held_on"
+                  name="held_on"
+                  type="date"
+                  required
+                  defaultValue={todayJst()}
+                />
               </Field>
-
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field htmlFor="format" label="区分" required>
-                  <Select id="format" name="format" required defaultValue="">
-                    <option value="">（選択してください）</option>
-                    {Object.entries(MEETING_FORMAT).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </Select>
-                </Field>
-                <Field htmlFor="held_on" label="実施日" required>
-                  <Input
-                    id="held_on"
-                    name="held_on"
-                    type="date"
-                    required
-                    defaultValue={todayJst()}
-                  />
-                </Field>
-              </div>
 
               <Field htmlFor="deal_id" label="関連する案件">
                 <Select id="deal_id" name="deal_id" defaultValue={presetDealId}>

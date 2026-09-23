@@ -178,6 +178,20 @@ export const MEETING_KIND = {
 } as const;
 export type MeetingKind = keyof typeof MEETING_KIND;
 
+// タイトルは任意なので、未入力のときは「種類 実施日」で見出しを作る。
+// 一覧・案件ページ・ナレッジで同じ出し方にするためここに置く。
+export function meetingLabel(meeting: {
+  title: string | null;
+  kind?: MeetingKind | null;
+  held_on?: string | null;
+}): string {
+  const title = meeting.title?.trim();
+  if (title) return title;
+  const kind = MEETING_KIND[meeting.kind ?? "mtg"];
+  const date = meeting.held_on?.slice(0, 10);
+  return date ? `${kind} ${date}` : kind;
+}
+
 export const SCENE_TAG = {
   pb_product: "PB品",
   maker_intro: "メーカー紹介",
@@ -428,8 +442,10 @@ export type Referral = {
 
 export type Meeting = {
   id: string;
-  title: string;
-  format: MeetingFormat;
+  /** 任意。未入力のときは種類＋実施日で代替表示する（meetingLabel を使う） */
+  title: string | null;
+  /** 区分はMTGのときだけ。call📞 / memo は null */
+  format: MeetingFormat | null;
   kind: MeetingKind;
   held_on: string;
   deal_id: string | null;

@@ -21,21 +21,21 @@ function str(value: FormDataEntryValue | null): string | null {
 const PROBLEM_ROW_COUNT = 3;
 
 export async function createMeeting(formData: FormData) {
+  // タイトルは任意（call📞 や memo はタイトルを付けないことが多いため）
   const title = str(formData.get("title"));
-  if (!title) {
-    throw new Error("MTGタイトルは必須です。");
-  }
 
-  const format = String(formData.get("format") ?? "");
-  if (!(format in MEETING_FORMAT)) {
-    throw new Error("区分（オンライン/オフライン）の値が不正です。");
-  }
-
-  // 種類（MTG/電話/メモ）。古いフォームから来た場合は従来どおり MTG 扱いにする
+  // 種類（MTG / call📞 / memo）。古いフォームから来た場合は従来どおり MTG 扱いにする
   const kind = String(formData.get("kind") || "mtg");
   if (!(kind in MEETING_KIND)) {
-    throw new Error("種類（MTG/電話/メモ）の値が不正です。");
+    throw new Error("種類の値が不正です。");
   }
+
+  // 区分（オンライン/オフライン）は MTG のときだけの項目。それ以外は null で保存する
+  const formatRaw = String(formData.get("format") ?? "");
+  if (kind === "mtg" && !(formatRaw in MEETING_FORMAT)) {
+    throw new Error("区分（オンライン/オフライン）の値が不正です。");
+  }
+  const format = kind === "mtg" ? (formatRaw as MeetingFormat) : null;
 
   const heldOn = str(formData.get("held_on"));
   if (!heldOn) {
@@ -67,7 +67,7 @@ export async function createMeeting(formData: FormData) {
     .from("meetings")
     .insert({
       title,
-      format: format as MeetingFormat,
+      format,
       kind: kind as MeetingKind,
       held_on: heldOn,
       deal_id: dealId,
@@ -118,21 +118,21 @@ export async function updateMeeting(formData: FormData) {
     throw new Error("MTG IDが指定されていません。");
   }
 
+  // タイトルは任意（call📞 や memo はタイトルを付けないことが多いため）
   const title = str(formData.get("title"));
-  if (!title) {
-    throw new Error("MTGタイトルは必須です。");
-  }
 
-  const format = String(formData.get("format") ?? "");
-  if (!(format in MEETING_FORMAT)) {
-    throw new Error("区分（オンライン/オフライン）の値が不正です。");
-  }
-
-  // 種類（MTG/電話/メモ）。古いフォームから来た場合は従来どおり MTG 扱いにする
+  // 種類（MTG / call📞 / memo）。古いフォームから来た場合は従来どおり MTG 扱いにする
   const kind = String(formData.get("kind") || "mtg");
   if (!(kind in MEETING_KIND)) {
-    throw new Error("種類（MTG/電話/メモ）の値が不正です。");
+    throw new Error("種類の値が不正です。");
   }
+
+  // 区分（オンライン/オフライン）は MTG のときだけの項目。それ以外は null で保存する
+  const formatRaw = String(formData.get("format") ?? "");
+  if (kind === "mtg" && !(formatRaw in MEETING_FORMAT)) {
+    throw new Error("区分（オンライン/オフライン）の値が不正です。");
+  }
+  const format = kind === "mtg" ? (formatRaw as MeetingFormat) : null;
 
   const heldOn = str(formData.get("held_on"));
   if (!heldOn) {
@@ -147,7 +147,7 @@ export async function updateMeeting(formData: FormData) {
     .from("meetings")
     .update({
       title,
-      format: format as MeetingFormat,
+      format,
       kind: kind as MeetingKind,
       held_on: heldOn,
       deal_id: dealId,
