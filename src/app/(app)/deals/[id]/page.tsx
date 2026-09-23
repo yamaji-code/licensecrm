@@ -588,7 +588,7 @@ export default async function DealDetailPage({
           </Card>
 
           {/* MTGログ（設計書§3 /deals/[id]「MTG一覧」）。
-              種類（MTG/電話/メモ）で分けて残す。商談数に数えるのは MTG だけ。 */}
+              種類（MTG / call📞 / memo）で分けて残す。商談数に数えるのは MTG だけ。 */}
           <Card>
             <CardHeader
               title="MTG LOG"
@@ -610,21 +610,21 @@ export default async function DealDetailPage({
                     variant="secondary"
                     size="sm"
                   >
-                    MTGを記録
+                    {MEETING_KIND.mtg}を記録
                   </ButtonLink>
                   <ButtonLink
                     href={`/meetings/new?deal_id=${deal.id}&kind=call`}
                     variant="secondary"
                     size="sm"
                   >
-                    電話を記録
+                    {MEETING_KIND.call}を記録
                   </ButtonLink>
                   <ButtonLink
                     href={`/meetings/new?deal_id=${deal.id}&kind=memo`}
                     variant="secondary"
                     size="sm"
                   >
-                    メモ
+                    {MEETING_KIND.memo}を記録
                   </ButtonLink>
                 </>
               }

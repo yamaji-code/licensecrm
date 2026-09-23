@@ -95,7 +95,7 @@ export default async function EditMeetingPage({
                 htmlFor="kind"
                 label="種類"
                 required
-                hint="商談数に数えるのは「MTG」だけ。電話や覚え書きは分けて残す"
+                hint="商談数に数えるのは「MTG」だけ。call・memo は分けて残す"
               >
                 <Select id="kind" name="kind" required defaultValue={meeting.kind ?? "mtg"}>
                   {Object.entries(MEETING_KIND).map(([value, label]) => (
