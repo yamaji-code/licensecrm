@@ -108,7 +108,7 @@ export default async function MeetingsPage({
     <PageShell>
       <PageHeader
         title="MTG"
-        meta={`MTG ${countOf("mtg")} / 電話 ${countOf("call")} / メモ ${countOf("memo")}`}
+        meta={`${MEETING_KIND.mtg} ${countOf("mtg")} / ${MEETING_KIND.call} ${countOf("call")} / ${MEETING_KIND.memo} ${countOf("memo")}`}
         actions={
           <>
             <ButtonLink href="/meetings/snippets" variant="secondary">
@@ -127,9 +127,21 @@ export default async function MeetingsPage({
           active={kindFilter}
           options={[
             { value: "all", label: `すべて ${allMeetings.length}`, href: "/meetings" },
-            { value: "mtg", label: `MTG ${countOf("mtg")}`, href: "/meetings?kind=mtg" },
-            { value: "call", label: `電話 ${countOf("call")}`, href: "/meetings?kind=call" },
-            { value: "memo", label: `メモ ${countOf("memo")}`, href: "/meetings?kind=memo" },
+            {
+              value: "mtg",
+              label: `${MEETING_KIND.mtg} ${countOf("mtg")}`,
+              href: "/meetings?kind=mtg",
+            },
+            {
+              value: "call",
+              label: `${MEETING_KIND.call} ${countOf("call")}`,
+              href: "/meetings?kind=call",
+            },
+            {
+              value: "memo",
+              label: `${MEETING_KIND.memo} ${countOf("memo")}`,
+              href: "/meetings?kind=memo",
+            },
           ]}
         />
       </div>

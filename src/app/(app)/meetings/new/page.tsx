@@ -53,11 +53,12 @@ export default async function NewMeetingPage({
   const { deal_id, company_id, kind } = await searchParams;
   const presetDealId = typeof deal_id === "string" ? deal_id : "";
   const presetCompanyId = typeof company_id === "string" ? company_id : "";
-  // 案件ページの「電話を記録」「メモ」ボタンから来たときは種類を選択済みにする
+  // 案件ページの「call📞を記録」「memoを記録」ボタンから来たときは種類を選択済みにする
   const presetKind =
-    typeof kind === "string" && kind in MEETING_KIND ? kind : "mtg";
-  const pageTitle =
-    presetKind === "call" ? "電話を記録" : presetKind === "memo" ? "メモを記録" : "MTGを記録";
+    typeof kind === "string" && kind in MEETING_KIND
+      ? (kind as keyof typeof MEETING_KIND)
+      : "mtg";
+  const pageTitle = `${MEETING_KIND[presetKind]}を記録`;
 
   const supabase = await createClient();
   const [{ data: companyData }, { data: dealData }, { data: snippetData }] =
@@ -96,7 +97,7 @@ export default async function NewMeetingPage({
                 htmlFor="kind"
                 label="種類"
                 required
-                hint="商談数に数えるのは「MTG」だけ。電話や覚え書きは分けて残す"
+                hint="商談数に数えるのは「MTG」だけ。call・memo は分けて残す"
               >
                 <Select id="kind" name="kind" required defaultValue={presetKind}>
                   {Object.entries(MEETING_KIND).map(([value, label]) => (
