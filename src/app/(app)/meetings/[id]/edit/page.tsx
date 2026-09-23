@@ -106,8 +106,12 @@ export default async function EditMeetingPage({
                 </Select>
               </Field>
 
-              <Field htmlFor="title" label="タイトル" required>
-                <Input id="title" name="title" required defaultValue={meeting.title} />
+              <Field
+                htmlFor="title"
+                label="タイトル"
+                hint="未入力の場合は「種類 実施日」で表示されます"
+              >
+                <Input id="title" name="title" defaultValue={meeting.title ?? ""} />
               </Field>
 
               <div className="grid gap-5 sm:grid-cols-2">

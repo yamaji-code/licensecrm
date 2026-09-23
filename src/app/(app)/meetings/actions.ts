@@ -21,10 +21,8 @@ function str(value: FormDataEntryValue | null): string | null {
 const PROBLEM_ROW_COUNT = 3;
 
 export async function createMeeting(formData: FormData) {
+  // タイトルは任意（call📞 や memo はタイトルを付けないことが多いため）
   const title = str(formData.get("title"));
-  if (!title) {
-    throw new Error("MTGタイトルは必須です。");
-  }
 
   const format = String(formData.get("format") ?? "");
   if (!(format in MEETING_FORMAT)) {
@@ -118,10 +116,8 @@ export async function updateMeeting(formData: FormData) {
     throw new Error("MTG IDが指定されていません。");
   }
 
+  // タイトルは任意（call📞 や memo はタイトルを付けないことが多いため）
   const title = str(formData.get("title"));
-  if (!title) {
-    throw new Error("MTGタイトルは必須です。");
-  }
 
   const format = String(formData.get("format") ?? "");
   if (!(format in MEETING_FORMAT)) {

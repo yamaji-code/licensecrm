@@ -20,6 +20,7 @@ import {
 } from "@/components/ui";
 import {
   KNOWLEDGE_STATUS,
+  meetingLabel,
   SCENE_TAG,
   type Company,
   type Deal,
@@ -31,7 +32,7 @@ import {
 const QUEUE_STATUSES = ["open", "review_requested", "answered"] as const;
 
 type KnowledgeRow = KnowledgeCard & {
-  meetings: Pick<Meeting, "title"> | null;
+  meetings: Pick<Meeting, "title" | "kind" | "held_on"> | null;
   deals: Pick<Deal, "title"> | null;
   companies: Pick<Company, "name"> | null;
 };
@@ -60,7 +61,7 @@ export default async function KnowledgePage({
   const supabase = await createClient();
 
   const selectWithRelations =
-    "*, meetings ( title ), deals ( title ), companies ( name )";
+    "*, meetings ( title, kind, held_on ), deals ( title ), companies ( name )";
 
   let cardsQuery =
     activeTab === "published"
@@ -265,7 +266,7 @@ export default async function KnowledgePage({
                       {(c.meeting_id || c.deal_id || c.company_id) && (
                         <div className="mt-2 flex flex-wrap gap-3 text-xs text-ink-faint">
                           {c.meeting_id && (
-                            <span>MTG: {c.meetings?.title ?? "—"}</span>
+                            <span>MTG: {c.meetings ? meetingLabel(c.meetings) : "—"}</span>
                           )}
                           {c.deal_id && (
                             <Link

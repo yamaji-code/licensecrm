@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   MEETING_FORMAT,
   MEETING_KIND,
+  meetingLabel,
   type Company,
   type Deal,
   type Meeting,
@@ -186,7 +187,7 @@ export default async function MeetingsPage({
                   <TR key={m.id}>
                     <TD className="whitespace-nowrap text-ink-soft">{m.held_on}</TD>
                     <TD>
-                      <p className="font-medium text-ink">{m.title}</p>
+                      <p className="font-medium text-ink">{meetingLabel(m)}</p>
                       {m.attendees && (
                         <p className="text-xs text-ink-faint">{m.attendees}</p>
                       )}
@@ -224,7 +225,7 @@ export default async function MeetingsPage({
                 className="rounded-card border border-line bg-white px-4 py-3 shadow-card"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="min-w-0 font-medium text-ink">{m.title}</p>
+                  <p className="min-w-0 font-medium text-ink">{meetingLabel(m)}</p>
                   <span className="flex shrink-0 items-center gap-1">
                     <KindBadge kind={m.kind} />
                     <FormatBadge format={m.format} />
