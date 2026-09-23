@@ -1,5 +1,6 @@
 import {
   MEETING_FORMAT_STYLE,
+  MEETING_KIND_STYLE,
   SCENE_TAG_STYLE,
   TASK_PRIORITY_STYLE,
 } from "@/components/badges";
@@ -48,6 +49,7 @@ import {
   DEAL_STAGE,
   DEAL_STAGE_ORDER,
   MEETING_FORMAT,
+  MEETING_KIND,
   PB_STATUS,
   SCENE_TAG,
   TASK_PRIORITY,
@@ -585,18 +587,46 @@ export default async function DealDetailPage({
             </CardBody>
           </Card>
 
-          {/* MTGログ（設計書§3 /deals/[id]「MTG一覧」） */}
+          {/* MTGログ（設計書§3 /deals/[id]「MTG一覧」）。
+              種類（MTG/電話/メモ）で分けて残す。商談数に数えるのは MTG だけ。 */}
           <Card>
             <CardHeader
               title="MTG LOG"
+              description={
+                meetings.length > 0
+                  ? (Object.keys(MEETING_KIND) as (keyof typeof MEETING_KIND)[])
+                      .map((k) => {
+                        const n = meetings.filter((m) => (m.kind ?? "mtg") === k).length;
+                        return n > 0 ? `${MEETING_KIND[k]} ${n}` : null;
+                      })
+                      .filter(Boolean)
+                      .join(" / ")
+                  : undefined
+              }
               actions={
-                <ButtonLink
-                  href={`/meetings/new?deal_id=${deal.id}`}
-                  variant="secondary"
-                  size="sm"
-                >
-                  MTGを記録
-                </ButtonLink>
+                <>
+                  <ButtonLink
+                    href={`/meetings/new?deal_id=${deal.id}`}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    MTGを記録
+                  </ButtonLink>
+                  <ButtonLink
+                    href={`/meetings/new?deal_id=${deal.id}&kind=call`}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    電話を記録
+                  </ButtonLink>
+                  <ButtonLink
+                    href={`/meetings/new?deal_id=${deal.id}&kind=memo`}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    メモ
+                  </ButtonLink>
+                </>
               }
             />
             {meetings.length > 0 ? (
@@ -608,7 +638,16 @@ export default async function DealDetailPage({
                       className="rounded-card border border-line px-4 py-3 text-sm"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-medium text-ink">{m.title}</span>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span
+                            className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                              MEETING_KIND_STYLE[m.kind ?? "mtg"]
+                            }`}
+                          >
+                            {MEETING_KIND[m.kind ?? "mtg"]}
+                          </span>
+                          <span className="font-medium text-ink">{m.title}</span>
+                        </span>
                         <span className="flex items-center gap-2 text-xs text-ink-soft">
                           <span
                             className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${

@@ -1,7 +1,14 @@
 import Link from "next/link";
-import { MEETING_FORMAT_STYLE } from "@/components/badges";
+import { MEETING_FORMAT_STYLE, MEETING_KIND_STYLE } from "@/components/badges";
 import { createClient } from "@/lib/supabase/server";
-import { MEETING_FORMAT, type Company, type Deal, type Meeting } from "@/lib/types";
+import {
+  MEETING_FORMAT,
+  MEETING_KIND,
+  type Company,
+  type Deal,
+  type Meeting,
+  type MeetingKind,
+} from "@/lib/types";
 import {
   ButtonLink,
   Card,
@@ -9,6 +16,7 @@ import {
   LoadErrorBanner,
   PageHeader,
   PageShell,
+  Segmented,
   TBody,
   TD,
   TH,
@@ -30,6 +38,19 @@ function FormatBadge({ format }: { format: MeetingRow["format"] }) {
       }`}
     >
       {MEETING_FORMAT[format]}
+    </span>
+  );
+}
+
+function KindBadge({ kind }: { kind: MeetingKind | null | undefined }) {
+  const k = kind ?? "mtg";
+  return (
+    <span
+      className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+        MEETING_KIND_STYLE[k]
+      }`}
+    >
+      {MEETING_KIND[k]}
     </span>
   );
 }
@@ -59,20 +80,35 @@ function RelatedLink({ meeting }: { meeting: MeetingRow }) {
   return <>—</>;
 }
 
-export default async function MeetingsPage() {
+export default async function MeetingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ kind?: string | string[] }>;
+}) {
+  const { kind } = await searchParams;
+  // 種類での絞り込み（?kind=mtg|call|memo）。未指定はすべて
+  const kindFilter: MeetingKind | "all" =
+    typeof kind === "string" && kind in MEETING_KIND ? (kind as MeetingKind) : "all";
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("meetings")
     .select("*, deals ( title ), companies ( name )")
     .order("held_on", { ascending: false });
 
-  const meetings = (data ?? []) as MeetingRow[];
+  const allMeetings = (data ?? []) as MeetingRow[];
+  const countOf = (k: MeetingKind) =>
+    allMeetings.filter((m) => (m.kind ?? "mtg") === k).length;
+  const meetings =
+    kindFilter === "all"
+      ? allMeetings
+      : allMeetings.filter((m) => (m.kind ?? "mtg") === kindFilter);
 
   return (
     <PageShell>
       <PageHeader
         title="MTG"
-        meta={`${meetings.length} 件`}
+        meta={`MTG ${countOf("mtg")} / 電話 ${countOf("call")} / メモ ${countOf("memo")}`}
         actions={
           <>
             <ButtonLink href="/meetings/snippets" variant="secondary">
@@ -84,6 +120,19 @@ export default async function MeetingsPage() {
           </>
         }
       />
+
+      <div className="mb-4">
+        <Segmented
+          label="種類"
+          active={kindFilter}
+          options={[
+            { value: "all", label: `すべて ${allMeetings.length}`, href: "/meetings" },
+            { value: "mtg", label: `MTG ${countOf("mtg")}`, href: "/meetings?kind=mtg" },
+            { value: "call", label: `電話 ${countOf("call")}`, href: "/meetings?kind=call" },
+            { value: "memo", label: `メモ ${countOf("memo")}`, href: "/meetings?kind=memo" },
+          ]}
+        />
+      </div>
 
       {error && (
         <div className="mb-4">
@@ -113,6 +162,7 @@ export default async function MeetingsPage() {
                 <TR className="hover:bg-transparent">
                   <TH>実施日</TH>
                   <TH>タイトル</TH>
+                  <TH>種類</TH>
                   <TH>区分</TH>
                   <TH>関連</TH>
                   <TH>要旨</TH>
@@ -128,6 +178,9 @@ export default async function MeetingsPage() {
                       {m.attendees && (
                         <p className="text-xs text-ink-faint">{m.attendees}</p>
                       )}
+                    </TD>
+                    <TD>
+                      <KindBadge kind={m.kind} />
                     </TD>
                     <TD>
                       <FormatBadge format={m.format} />
@@ -160,7 +213,10 @@ export default async function MeetingsPage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="min-w-0 font-medium text-ink">{m.title}</p>
-                  <FormatBadge format={m.format} />
+                  <span className="flex shrink-0 items-center gap-1">
+                    <KindBadge kind={m.kind} />
+                    <FormatBadge format={m.format} />
+                  </span>
                 </div>
                 {m.attendees && (
                   <p className="mt-0.5 text-xs text-ink-faint">{m.attendees}</p>

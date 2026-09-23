@@ -7,6 +7,7 @@ import { TaskTypeField } from "../../tasks/task-type-field";
 import { jstDateString } from "@/lib/date";
 import {
   MEETING_FORMAT,
+  MEETING_KIND,
   SCENE_TAG,
   TASK_PRIORITY,
   TASK_STATUS,
@@ -46,11 +47,17 @@ export default async function NewMeetingPage({
   searchParams: Promise<{
     deal_id?: string | string[];
     company_id?: string | string[];
+    kind?: string | string[];
   }>;
 }) {
-  const { deal_id, company_id } = await searchParams;
+  const { deal_id, company_id, kind } = await searchParams;
   const presetDealId = typeof deal_id === "string" ? deal_id : "";
   const presetCompanyId = typeof company_id === "string" ? company_id : "";
+  // 案件ページの「電話を記録」「メモ」ボタンから来たときは種類を選択済みにする
+  const presetKind =
+    typeof kind === "string" && kind in MEETING_KIND ? kind : "mtg";
+  const pageTitle =
+    presetKind === "call" ? "電話を記録" : presetKind === "memo" ? "メモを記録" : "MTGを記録";
 
   const supabase = await createClient();
   const [{ data: companyData }, { data: dealData }, { data: snippetData }] =
@@ -72,7 +79,7 @@ export default async function NewMeetingPage({
   return (
     <PageShell width="default">
       <PageHeader
-        title="MTGを記録"
+        title={pageTitle}
         back={
           <Link href="/meetings" className="text-ink-soft hover:text-brand-700">
             ← MTG一覧
@@ -85,7 +92,22 @@ export default async function NewMeetingPage({
           <form action={createMeeting} className="space-y-5">
             {/* 短い項目は幅を絞って読みやすさを保つ（要旨だけカード幅いっぱいに広げる） */}
             <div className="max-w-2xl space-y-5">
-              <Field htmlFor="title" label="MTGタイトル" required>
+              <Field
+                htmlFor="kind"
+                label="種類"
+                required
+                hint="商談数に数えるのは「MTG」だけ。電話や覚え書きは分けて残す"
+              >
+                <Select id="kind" name="kind" required defaultValue={presetKind}>
+                  {Object.entries(MEETING_KIND).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field htmlFor="title" label="タイトル" required>
                 <Input id="title" name="title" required />
               </Field>
 
