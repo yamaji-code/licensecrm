@@ -135,10 +135,8 @@ function str(value: FormDataEntryValue | null): string | null {
 }
 
 export async function createDeal(formData: FormData) {
+  // 取引先は任意（会社が決まる前でも案件を先に作れるようにする）
   const companyId = str(formData.get("company_id"));
-  if (!companyId) {
-    throw new Error("取引先は必須です。");
-  }
 
   const channel = parseChannels(formData);
 
@@ -257,6 +255,27 @@ export async function updateDealGenre(formData: FormData) {
   const { error } = await supabase
     .from("deals")
     .update({ genre_id: parseGenreId(formData.get("genre_id")) })
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(`更新に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath(`/deals/${id}`);
+  revalidatePath("/deals");
+}
+
+// 取引先が未設定の案件に、あとから取引先を紐づける（取引先は任意項目のため）。
+export async function updateDealCompany(formData: FormData) {
+  const id = str(formData.get("id"));
+  if (!id) {
+    throw new Error("案件IDが不正です。");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("deals")
+    .update({ company_id: str(formData.get("company_id")) })
     .eq("id", id);
 
   if (error) {

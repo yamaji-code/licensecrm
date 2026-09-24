@@ -61,14 +61,17 @@ export default async function NewDealPage({
       <Card>
         <CardBody>
           <form action={createDeal} className="space-y-5">
-            <Field htmlFor="company_id" label="取引先" required>
+            <Field
+              htmlFor="company_id"
+              label="取引先"
+              hint="決まっていなければ空のままで登録できます（あとから設定可）"
+            >
               <Select
                 id="company_id"
                 name="company_id"
-                required
                 defaultValue={presetCompanyId}
               >
-                <option value="">（選択してください）</option>
+                <option value="">（なし）</option>
                 {companies.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
