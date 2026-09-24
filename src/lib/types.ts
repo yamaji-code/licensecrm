@@ -377,7 +377,8 @@ export type Partner = {
 
 export type Deal = {
   id: string;
-  company_id: string;
+  /** 任意。取引先が決まる前の案件は null */
+  company_id: string | null;
   title: string;
   stage: DealStage;
   channel: DealChannel[];

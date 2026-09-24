@@ -19,6 +19,7 @@ import {
   updateDeal,
   updateDealChannel,
   updateDealContactEntry,
+  updateDealCompany,
   updateDealGenre,
 } from "../actions";
 import { updateCompanyDetails } from "../../companies/actions";
@@ -187,6 +188,16 @@ export default async function DealDetailPage({
     eventError ?? taskError ?? meetingError ?? knowledgeError ?? genreStatError;
 
   const deal = dealData as DealDetail;
+  // 取引先は任意項目。未設定の案件だけ、あとから紐づけるための選択肢を取りに行く
+  // （通常は不要なクエリなので、company_id が無いときだけ実行する）。
+  const companyOptions = deal.company_id
+    ? []
+    : (((
+        await supabase
+          .from("companies")
+          .select("id, name")
+          .order("name", { ascending: true })
+      ).data ?? []) as { id: string; name: string }[]);
   const dealContactEntries = (dealContactEntryData ?? []) as DealContactEntry[];
   const stageEvents = (eventData ?? []) as StageEvent[];
   // 優先度が高い順→期日が古い順（完了済み一覧は更新日時順のためここでは並べ替えない）
@@ -734,13 +745,15 @@ export default async function DealDetailPage({
             <CardHeader
               title="取引先"
               actions={
-                <ButtonLink
-                  href={`/companies/${deal.company_id}`}
-                  variant="ghost"
-                  size="sm"
-                >
-                  ページを開く
-                </ButtonLink>
+                deal.company_id ? (
+                  <ButtonLink
+                    href={`/companies/${deal.company_id}`}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    ページを開く
+                  </ButtonLink>
+                ) : null
               }
             />
             <CardBody className="space-y-4">
@@ -751,6 +764,7 @@ export default async function DealDetailPage({
                   他の案件属性まで巻き込んで消してしまうため）。
                   並び順はサヤカさん指定（会社名→ターゲットブランド→法人URL→tier→
                   獲得チャネル→リード創出→ジャンル→親会社）。紹介元パートナーは削除済み。 */}
+              {deal.company_id ? (
               <form action={updateCompanyDetails} className="space-y-4">
                 <input type="hidden" name="id" value={deal.company_id} />
                 <input type="hidden" name="deal_id" value={deal.id} />
@@ -810,6 +824,29 @@ export default async function DealDetailPage({
                   保存
                 </SubmitButton>
               </form>
+              ) : (
+                /* 取引先は任意項目。未設定のうちは、ここから既存の取引先を選んで紐づける */
+                <form action={updateDealCompany} className="space-y-2">
+                  <input type="hidden" name="id" value={deal.id} />
+                  <Field
+                    htmlFor="company_id_card"
+                    label="取引先"
+                    hint="まだ紐づいていません。選んで保存すると取引先の情報を編集できます"
+                  >
+                    <Select id="company_id_card" name="company_id" defaultValue="">
+                      <option value="">（なし）</option>
+                      {companyOptions.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <SubmitButton variant="secondary" size="sm" pendingLabel="保存中…">
+                    保存
+                  </SubmitButton>
+                </form>
+              )}
 
               <form
                 action={updateDealChannel}
