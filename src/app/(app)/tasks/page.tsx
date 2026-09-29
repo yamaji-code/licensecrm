@@ -31,6 +31,7 @@ import {
   LoadErrorBanner,
   PageHeader,
   PageShell,
+  SaveForm,
   Segmented,
   Select,
   SubmitButton,
@@ -45,7 +46,7 @@ import {
 import {
   quickAddNextAction,
   toggleTaskDone,
-  updateTask,
+  updateTaskWithResult,
   moveOverdueTasksTo,
   updateTaskAssignee,
   updateTaskDueDate,
@@ -177,11 +178,10 @@ function TaskDetail({
         </p>
         <DoneToggle task={task} action={action} />
       </div>
-      <form action={updateTask} className="space-y-3">
+      <SaveForm action={updateTaskWithResult} className="space-y-3">
         <input type="hidden" name="id" value={task.id} />
         <TaskFields task={task} />
-        <SubmitButton pendingLabel="保存中…">保存</SubmitButton>
-      </form>
+      </SaveForm>
     </div>
   );
 }

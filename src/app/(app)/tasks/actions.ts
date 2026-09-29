@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { SaveResult } from "@/components/ui";
 import { jstDateString, nextRecurrenceDate } from "@/lib/date";
 import {
   CLOSED_DEAL_STAGES,
@@ -156,6 +157,28 @@ export async function updateTask(formData: FormData) {
   if (dealId) {
     revalidatePath(`/deals/${dealId}`);
     revalidatePath("/deals");
+  }
+}
+
+/*
+ * 保存の成否を画面へ返すための updateTask のラッパー。
+ * updateTask は失敗時に throw する作りなので、ここで受け止めて結果に変換する。
+ * （updateTask は redirect しないため、catch で握りつぶす心配はない）
+ */
+export async function updateTaskWithResult(
+  _prev: SaveResult,
+  formData: FormData,
+): Promise<SaveResult> {
+  try {
+    await updateTask(formData);
+    return { ok: true, message: "保存しました", at: Date.now() };
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : "保存できませんでした",
+      at: Date.now(),
+    };
   }
 }
 
