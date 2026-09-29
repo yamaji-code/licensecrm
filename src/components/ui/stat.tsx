@@ -47,7 +47,7 @@ export function StatItem({
   const valueTone =
     tone === "ok" ? "text-ok" : tone === "warn" ? "text-warn" : "text-ink";
   return (
-    <div className="min-w-[8.5rem] flex-1 px-5 py-4">
+    <div className="min-w-[10.5rem] flex-1 px-5 py-4">
       <p className="text-xs text-ink-soft">{label}</p>
       <p
         className={`mt-1 text-2xl font-medium tabular-nums ${valueTone}`}
@@ -58,7 +58,7 @@ export function StatItem({
         ) : null}
       </p>
       {note ? (
-        <p className="mt-1 text-[11px] leading-relaxed text-ink-faint">{note}</p>
+        <p className="mt-1.5 text-[11px] leading-relaxed text-ink-faint">{note}</p>
       ) : null}
     </div>
   );
