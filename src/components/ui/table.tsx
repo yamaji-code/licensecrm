@@ -8,14 +8,20 @@ import type { ComponentProps, ReactNode } from "react";
 export function Table({
   children,
   caption,
+  minWidth = "min-w-[36rem]",
 }: {
   children: ReactNode;
   /** 画面には出さないが読み上げ用に表の意味を入れる */
   caption?: string;
+  /**
+   * 表の最小幅。列が多い表は既定のままだと各列が潰れてセルが縦積みになるため、
+   * 広めの値を渡して横スクロールに逃がす（Tailwindのクラスで渡す）。
+   */
+  minWidth?: string;
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[36rem] border-collapse text-sm">
+      <table className={`w-full ${minWidth} border-collapse text-sm`}>
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         {children}
       </table>

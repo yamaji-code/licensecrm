@@ -35,7 +35,7 @@ function StsBadge({ sts }: { sts: string | null }) {
   const tone = APPROACH_STS_TONE[sts] ?? "muted";
   return (
     <span
-      className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STS_TONE_CLASS[tone]}`}
+      className={`inline-block shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${STS_TONE_CLASS[tone]}`}
     >
       {sts}
     </span>
@@ -177,18 +177,22 @@ export default async function ApproachPage({
               title="一覧"
               description="シートの並び順のまま表示しています。行の内容はシート側で更新してください。"
             />
-            <Table caption="アプローチ先の一覧">
+            {/* 列が多いので、詰めずに横スクロールへ逃がす。各セルは1行に収める */}
+            <Table caption="アプローチ先の一覧" minWidth="min-w-[104rem]">
               <THead>
                 <TR className="hover:bg-transparent">
                   <TH>時期</TH>
                   <TH>STS</TH>
                   <TH>ブランド名</TH>
+                  <TH>カテゴリ</TH>
                   <TH>運営会社</TH>
+                  <TH>都道府県</TH>
                   <TH numeric>店舗数</TH>
                   <TH numeric>平均評価</TH>
                   <TH numeric>評価数</TH>
                   <TH>電話番号</TH>
                   <TH>代表者</TH>
+                  <TH>メモ</TH>
                   <TH>リンク</TH>
                   <TH>案件</TH>
                 </TR>
@@ -199,34 +203,35 @@ export default async function ApproachPage({
                     <TD className="whitespace-nowrap text-xs text-ink-soft">
                       {r.approach_month ?? "—"}
                     </TD>
-                    <TD>
+                    <TD className="whitespace-nowrap">
                       <StsBadge sts={r.sts} />
                     </TD>
-                    <TD>
-                      <span className="font-medium text-ink">
+                    <TD className="font-medium text-ink">
+                      <span
+                        className="block max-w-[16rem] truncate"
+                        title={r.brand_name ?? undefined}
+                      >
                         {r.brand_name ?? "—"}
                       </span>
-                      {r.category && (
-                        <span className="block text-xs text-ink-faint">
-                          {r.category}
-                        </span>
-                      )}
-                      {r.memo && (
-                        <span
-                          className="mt-0.5 block max-w-md truncate text-xs text-ink-faint"
-                          title={r.memo}
-                        >
-                          {r.memo}
-                        </span>
-                      )}
+                    </TD>
+                    <TD className="text-xs text-ink-faint">
+                      <span
+                        className="block max-w-[10rem] truncate"
+                        title={r.category ?? undefined}
+                      >
+                        {r.category ?? "—"}
+                      </span>
                     </TD>
                     <TD className="text-ink-soft">
-                      {r.company_name ?? "—"}
-                      {r.prefecture && (
-                        <span className="block text-xs text-ink-faint">
-                          {r.prefecture}
-                        </span>
-                      )}
+                      <span
+                        className="block max-w-[16rem] truncate"
+                        title={r.company_name ?? undefined}
+                      >
+                        {r.company_name ?? "—"}
+                      </span>
+                    </TD>
+                    <TD className="whitespace-nowrap text-xs text-ink-soft">
+                      {r.prefecture ?? "—"}
                     </TD>
                     <TD numeric className="text-ink-soft">
                       {r.shop_count ?? "—"}
@@ -242,6 +247,14 @@ export default async function ApproachPage({
                     </TD>
                     <TD className="whitespace-nowrap text-ink-soft">
                       {r.ceo_name ?? "—"}
+                    </TD>
+                    <TD className="text-xs text-ink-faint">
+                      <span
+                        className="block max-w-[22rem] truncate"
+                        title={r.memo ?? undefined}
+                      >
+                        {r.memo ?? "—"}
+                      </span>
                     </TD>
                     <TD className="whitespace-nowrap text-xs">
                       <span className="flex gap-2">
