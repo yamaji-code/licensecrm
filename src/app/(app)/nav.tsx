@@ -1,6 +1,7 @@
 "use client";
 
 // サイドバーのナビゲーション。現在地のハイライトに usePathname を使うためクライアント側。
+// 触れる高さはモバイルで44pxを確保し、広い画面だけ詰める（項目数が多いので密度を優先）。
 // アイコンは SVG（絵文字は使わない規約）。線は currentColor でテキスト色に追従させる。
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -146,35 +147,35 @@ export default function Nav({
         onClick={onNavigate}
         aria-current={current ? "page" : undefined}
         title={collapsed ? label : undefined}
-        className={`flex min-h-11 items-center rounded-lg py-2 text-sm transition-colors ${
-          collapsed ? "justify-center px-0" : "gap-3 px-3"
+        className={`flex min-h-11 items-center rounded-lg text-[13px] transition-colors lg:min-h-9 ${
+          collapsed ? "justify-center px-0 py-2" : "gap-2.5 px-3 py-1.5"
         } ${
           current
-            ? "bg-brand-600 font-medium text-white"
-            : "text-brand-100 hover:bg-brand-600/60 hover:text-white"
+            ? "bg-brand-600 font-medium text-white ring-1 ring-brand-400/70"
+            : "text-brand-100/90 hover:bg-brand-700 hover:text-white"
         }`}
       >
-        <Icon className="h-5 w-5 shrink-0" />
+        <Icon className="h-[18px] w-[18px] shrink-0" />
         {collapsed ? <span className="sr-only">{label}</span> : label}
       </Link>
     );
   };
 
   return (
-    <nav className={`flex-1 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-3"}`}>
+    <nav className={`flex-1 overflow-y-auto py-3 ${collapsed ? "px-2" : "px-2.5"}`}>
       {NAV_GROUPS.map((group) => (
-        <div key={group.label} className="mb-4 last:mb-0">
+        <div key={group.label} className="mb-3 last:mb-0">
           {collapsed ? (
-            <div className="mx-2 mb-2 border-t border-brand-600" />
+            <div className="mx-2 mb-2 border-t border-brand-700" />
           ) : (
-            <p className="px-3 pb-1 text-[11px] font-medium tracking-wide text-brand-300">
+            <p className="px-3 pb-1 text-[10px] font-medium tracking-wider text-brand-300/80">
               {group.label}
             </p>
           )}
-          <div className="space-y-0.5">{group.items.map(renderItem)}</div>
+          <div className="space-y-px">{group.items.map(renderItem)}</div>
         </div>
       ))}
-      <div className="mt-2 border-t border-brand-600 pt-3">
+      <div className="mt-2 border-t border-brand-700 pt-2">
         {renderItem(HELP_ITEM)}
       </div>
     </nav>
