@@ -394,6 +394,47 @@ export type Deal = {
   updated_at: string;
 };
 
+// アプローチリスト（案件になる前のテレアポ台帳）。
+// 本体はスプレッドシートで、CRMは取り込んだ内容を読むだけ。deal_id だけCRM固有。
+export type ApproachTarget = {
+  id: string;
+  sort_order: number;
+  approach_month: string | null;
+  sts: string | null;
+  fm: boolean;
+  memo: string | null;
+  brand_name: string | null;
+  shop_count: number | null;
+  avg_rating: number | null;
+  rating_count: number | null;
+  uber_url: string | null;
+  ec_url: string | null;
+  category: string | null;
+  company_name: string | null;
+  prefecture: string | null;
+  company_url: string | null;
+  phone: string | null;
+  ceo_name: string | null;
+  facebook_note: string | null;
+  deal_id: string | null;
+  imported_at: string;
+  created_at: string;
+};
+
+// STSはシートの自由入力なので網羅はできない。既知の値だけ色をつけ、
+// 未知の値は中立色にする（色が足りずに落ちるより、増えても壊れない側に倒す）。
+export const APPROACH_STS_TONE: Record<string, "ok" | "brand" | "warn" | "muted"> = {
+  アポ: "ok",
+  担当者接触: "brand",
+  担当者接触見込み: "brand",
+  再コール: "warn",
+  不通1: "warn",
+  不通2: "warn",
+  窓口突破NG: "muted",
+  商談前NG: "muted",
+  重複: "muted",
+};
+
 export type Genre = {
   id: string;
   name: string;

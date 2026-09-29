@@ -34,6 +34,14 @@ function DealsIcon({ className }: IconProps) {
   );
 }
 
+function ApproachIcon({ className }: IconProps) {
+  return (
+    <svg {...iconBase} className={className}>
+      <path d="M8.25 6.75h12M8.25 12h12M8.25 17.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+    </svg>
+  );
+}
+
 function CompaniesIcon({ className }: IconProps) {
   return (
     <svg {...iconBase} className={className}>
@@ -93,6 +101,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/", label: "ダッシュボード", Icon: DashboardIcon },
       { href: "/deals", label: "案件", Icon: DealsIcon },
+      { href: "/approach", label: "アプローチリスト", Icon: ApproachIcon },
       { href: "/tasks", label: "タスク", Icon: TasksIcon },
     ],
   },
