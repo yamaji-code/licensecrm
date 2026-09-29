@@ -267,10 +267,15 @@ export default async function Dashboard() {
         <StatStrip
           note={
             <>
-              商談実施・契約は当四半期に到達した件数（ステージ到達ベース）。速報成約率 =
-              当Q契約 ÷ 当Q商談の暫定値で、契約は前Q以前に商談実施した案件を含むことがあります。コホート成約率
-              = 当Q商談到達 {meetingsCount} 件のうち契約到達 {cohortContractCount}{" "}
-              件（追跡中のためQ序盤は低く出ます）。
+              集計期間は {quarterLabel}（会計年度は1月始まり・JST基準）。商談実施と契約は
+              <span className="text-ink-soft">
+                ステージに「初めて到達した日」
+              </span>
+              で数えるため、ステージを戻して進め直しても二重には数えません。なお商談実施はMTGログの件数とは別の数字です（MTGログを何件書いても増減しません）。
+              速報成約率とコホート成約率は
+              <span className="text-ink-soft">分母が同じで分子が違います</span>
+              ：速報は当Qに契約した {contractsCount} 件（商談時期は問わない）、コホートは当Q商談の{" "}
+              {meetingsCount} 件のうち契約済みの {cohortContractCount} 件です。
             </>
           }
         >
@@ -279,17 +284,37 @@ export default async function Dashboard() {
             value={meetingsCount}
             sub={`/ ${targets.meetings} 件`}
             tone={meetingsCount >= targets.meetings ? "ok" : "warn"}
+            note="当Qにステージが「商談実施」へ初到達した案件数"
           />
           <StatItem
             label="契約"
             value={contractsCount}
             sub={`/ ${targets.contracts} 件`}
             tone={contractsCount >= targets.contracts ? "ok" : "warn"}
+            note="当Qにステージが「開発引継ぎ」へ初到達した案件数"
           />
-          <StatItem label="速報成約率" value={flashRateLabel} />
-          <StatItem label="コホート成約率" value={cohortRateLabel} />
-          <StatItem label="取引先" value={companyCount ?? 0} sub="社" />
-          <StatItem label="未完了タスク" value={taskOpenCount ?? 0} sub="件" />
+          <StatItem
+            label="速報成約率"
+            value={flashRateLabel}
+            note="当Q契約 ÷ 当Q商談。契約側に前Q以前の商談が混ざる暫定値"
+          />
+          <StatItem
+            label="コホート成約率"
+            value={cohortRateLabel}
+            note="当Q商談の案件だけを追跡した率。Q序盤は低く出ます"
+          />
+          <StatItem
+            label="取引先"
+            value={companyCount ?? 0}
+            sub="社"
+            note="登録済みの全件。期間やステージの絞り込みなし"
+          />
+          <StatItem
+            label="未完了タスク"
+            value={taskOpenCount ?? 0}
+            sub="件"
+            note="ステータスが完了以外の全件。期限切れ・期限なしを含む"
+          />
         </StatStrip>
 
         {/* 目標に対する位置は帯だけだと読み取りにくいので、進捗バーは残して下に添える */}
