@@ -11,6 +11,7 @@ import {
   type MeetingKind,
 } from "@/lib/types";
 import {
+  Banner,
   ButtonLink,
   Card,
   EmptyState,
@@ -86,9 +87,9 @@ function RelatedLink({ meeting }: { meeting: MeetingRow }) {
 export default async function MeetingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string | string[] }>;
+  searchParams: Promise<{ kind?: string | string[]; saved?: string | string[] }>;
 }) {
-  const { kind } = await searchParams;
+  const { kind, saved } = await searchParams;
   // 種類での絞り込み（?kind=mtg|call|memo）。未指定はすべて
   const kindFilter: MeetingKind | "all" =
     typeof kind === "string" && kind in MEETING_KIND ? (kind as MeetingKind) : "all";
@@ -148,6 +149,12 @@ export default async function MeetingsPage({
           ]}
         />
       </div>
+
+      {saved === "mtg" && (
+        <div className="mb-4">
+          <Banner tone="ok" title="MTG LOGを保存しました" />
+        </div>
+      )}
 
       {error && (
         <div className="mb-4">

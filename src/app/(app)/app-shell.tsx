@@ -179,11 +179,14 @@ export function AppShell({
   );
 
   return (
-    // dvh = モバイルのアドレスバー可変高で下端が隠れるのを防ぐ
-    <div className="flex h-[100dvh] overflow-hidden">
+    // dvh = モバイルのアドレスバー可変高で下端が隠れるのを防ぐ。
+    // dvh が効かない環境では高さ指定ごと無効になり、枠が中身の高さまで伸びて
+    // ウィンドウ側がスクロールしてしまう（サイドバーが流れて下が余白になる）。
+    // そうならないよう h-screen(100vh) を先に置いて必ず高さが決まるようにする。
+    <div className="flex h-screen h-[100dvh] overflow-hidden bg-surface">
       {/* 広い画面の固定サイドバー。« で折りたたむと本文を広く使える */}
       <aside
-        className={`relative hidden shrink-0 flex-col bg-sidebar transition-[width] lg:flex ${
+        className={`relative hidden h-screen h-[100dvh] shrink-0 flex-col bg-sidebar transition-[width] lg:flex ${
           collapsed ? "w-16" : "w-56"
         }`}
       >

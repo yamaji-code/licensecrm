@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import type { ReactNode } from "react";
 import { SubmitButton } from "./submit-button";
+import type { ButtonSize, ButtonVariant } from "./button";
 
 /*
  * 保存の成否を画面に出すフォーム。
@@ -49,12 +50,17 @@ export function SaveForm({
   children,
   submitLabel = "保存",
   pendingLabel = "保存中…",
+  submitVariant,
+  submitSize,
   className = "space-y-4",
 }: {
   action: SaveAction;
   children: ReactNode;
   submitLabel?: string;
   pendingLabel?: string;
+  /** 既存画面のボタンの見た目に合わせたいときに渡す */
+  submitVariant?: ButtonVariant;
+  submitSize?: ButtonSize;
   className?: string;
 }) {
   const [state, formAction] = useActionState<SaveResult, FormData>(
@@ -66,7 +72,13 @@ export function SaveForm({
     <form action={formAction} className={className}>
       {children}
       <div className="flex flex-wrap items-center gap-3">
-        <SubmitButton pendingLabel={pendingLabel}>{submitLabel}</SubmitButton>
+        <SubmitButton
+          pendingLabel={pendingLabel}
+          variant={submitVariant}
+          size={submitSize}
+        >
+          {submitLabel}
+        </SubmitButton>
         <SaveMessage state={state} />
       </div>
     </form>

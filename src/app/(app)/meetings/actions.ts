@@ -162,14 +162,15 @@ export async function updateMeeting(formData: FormData) {
   }
 
   revalidatePath("/meetings");
+  // 遷移してしまうので、遷移先で「保存できた」と分かるように印をつける
   if (dealId) {
     revalidatePath(`/deals/${dealId}`);
-    redirect(`/deals/${dealId}`);
+    redirect(`/deals/${dealId}?saved=mtg`);
   }
   if (companyId) {
     revalidatePath(`/companies/${companyId}`);
   }
-  redirect("/meetings");
+  redirect("/meetings?saved=mtg");
 }
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
