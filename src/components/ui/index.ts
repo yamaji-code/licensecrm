@@ -8,6 +8,7 @@ export { Input, Select, Textarea, Field, FormActions } from "./form";
 export { SubmitButton } from "./submit-button";
 export { Card, CardHeader, CardBody, DescList, DescItem } from "./card";
 export { Table, THead, TBody, TR, TH, TD } from "./table";
+export { StatStrip, StatItem } from "./stat";
 export {
   Banner,
   LoadErrorBanner,

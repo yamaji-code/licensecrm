@@ -119,7 +119,14 @@ function isCurrent(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export default function Nav({ onNavigate }: { onNavigate?: () => void }) {
+export default function Nav({
+  onNavigate,
+  collapsed = false,
+}: {
+  onNavigate?: () => void;
+  /** 折りたたみ時はアイコンだけにする（ラベルは title で補う） */
+  collapsed?: boolean;
+}) {
   const pathname = usePathname();
 
   const renderItem = ({
@@ -138,25 +145,32 @@ export default function Nav({ onNavigate }: { onNavigate?: () => void }) {
         href={href}
         onClick={onNavigate}
         aria-current={current ? "page" : undefined}
-        className={`flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
+        title={collapsed ? label : undefined}
+        className={`flex min-h-11 items-center rounded-lg py-2 text-sm transition-colors ${
+          collapsed ? "justify-center px-0" : "gap-3 px-3"
+        } ${
           current
             ? "bg-brand-600 font-medium text-white"
             : "text-brand-100 hover:bg-brand-600/60 hover:text-white"
         }`}
       >
         <Icon className="h-5 w-5 shrink-0" />
-        {label}
+        {collapsed ? <span className="sr-only">{label}</span> : label}
       </Link>
     );
   };
 
   return (
-    <nav className="flex-1 overflow-y-auto px-3 py-4">
+    <nav className={`flex-1 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-3"}`}>
       {NAV_GROUPS.map((group) => (
         <div key={group.label} className="mb-4 last:mb-0">
-          <p className="px-3 pb-1 text-[11px] font-medium tracking-wide text-brand-300">
-            {group.label}
-          </p>
+          {collapsed ? (
+            <div className="mx-2 mb-2 border-t border-brand-600" />
+          ) : (
+            <p className="px-3 pb-1 text-[11px] font-medium tracking-wide text-brand-300">
+              {group.label}
+            </p>
+          )}
           <div className="space-y-0.5">{group.items.map(renderItem)}</div>
         </div>
       ))}

@@ -25,7 +25,7 @@ export function Table({
 
 export function THead({ children }: { children: ReactNode }) {
   return (
-    <thead className="border-b border-line text-left text-xs text-ink-soft">
+    <thead className="border-b border-line bg-surface text-left text-xs text-ink-soft">
       {children}
     </thead>
   );
@@ -59,7 +59,7 @@ export function TH({ numeric, className, children, ...rest }: CellProps) {
     <th
       scope="col"
       className={[
-        "px-4 py-2.5 font-medium",
+        "px-4 py-2 font-medium whitespace-nowrap",
         numeric ? "text-right tabular-nums" : "text-left",
         className,
       ]
@@ -76,7 +76,7 @@ export function TD({ numeric, className, children, ...rest }: CellProps) {
   return (
     <td
       className={[
-        "px-4 py-3 align-top text-ink",
+        "px-4 py-2.5 align-middle text-ink",
         numeric ? "text-right tabular-nums" : "",
         className,
       ]
