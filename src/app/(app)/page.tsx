@@ -212,15 +212,12 @@ export default async function Dashboard() {
                 案件ボードで確認
               </ButtonLink>
             }
-          >
-            案件は動いているのに、次に何をするかが登録されていない状態です。
-          </Banner>
+          />
         )}
 
         <Card>
           <CardHeader
             title="期限が近いタスク"
-            description="期限が近い順に5件。クリックせずここで状況と期日だけ確認できます。"
             actions={
               <Link
                 href="/tasks"
