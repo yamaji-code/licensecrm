@@ -7,8 +7,8 @@ import {
   TASK_STATUS,
   type TaskChecklistItem,
 } from "@/lib/types";
-import { Field, Input, Select, SubmitButton, Textarea } from "@/components/ui";
-import { updateTask } from "./actions";
+import { Field, Input, SaveForm, Select, Textarea } from "@/components/ui";
+import { updateTaskWithResult } from "./actions";
 import { TaskChecklist } from "./task-checklist";
 import {
   companyNameOf,
@@ -64,7 +64,7 @@ export function TaskDetailPanel({
             </Link>
           )}
 
-          <form action={updateTask} className="space-y-4">
+          <SaveForm action={updateTaskWithResult}>
             <input type="hidden" name="id" value={task.id} />
             <Field htmlFor={`panel-title-${task.id}`} label="タイトル" required>
               <Input
@@ -164,8 +164,7 @@ export function TaskDetailPanel({
               />
             </Field>
 
-            <SubmitButton pendingLabel="保存中…">保存</SubmitButton>
-          </form>
+          </SaveForm>
 
           <div className="mt-6 border-t border-line pt-4">
             <TaskChecklist taskId={task.id} items={checklistItems} />

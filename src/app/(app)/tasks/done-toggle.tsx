@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useOptimistic, useTransition } from "react";
 import type { TaskWithCompany } from "./task-types";
 
 /*
@@ -23,12 +23,9 @@ export function DoneToggle({
 }) {
   const done = task.status === "done";
   const [isPending, startTransition] = useTransition();
-  const [optimisticDone, setOptimisticDone] = useState(done);
-
-  // サーバーの確定値（再検証後の task.status）が変わったら追従する
-  useEffect(() => {
-    setOptimisticDone(done);
-  }, [done]);
+  // useOptimistic は「サーバー確定値 done」を元に、送信中だけ仮の値を見せる。
+  // 送信が終われば自動で done に戻るので、確定値へ追従する処理は要らない。
+  const [optimisticDone, setOptimisticDone] = useOptimistic(done);
 
   return (
     <button
@@ -38,12 +35,13 @@ export function DoneToggle({
       disabled={isPending}
       onClick={() => {
         const next = !optimisticDone;
-        setOptimisticDone(next);
         const formData = new FormData();
         formData.set("id", task.id);
         formData.set("done", String(next));
+        // setOptimistic はトランジションの中でしか使えない
         startTransition(() => {
-          action(formData);
+          setOptimisticDone(next);
+          return action(formData);
         });
       }}
       className="-m-2 flex h-10 w-10 items-center justify-center rounded-full disabled:cursor-wait"

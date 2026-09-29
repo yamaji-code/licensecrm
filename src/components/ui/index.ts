@@ -6,6 +6,8 @@ export { Button, ButtonLink, buttonClass } from "./button";
 export type { ButtonVariant, ButtonSize } from "./button";
 export { Input, Select, Textarea, Field, FormActions } from "./form";
 export { SubmitButton } from "./submit-button";
+export { SaveForm } from "./save-form";
+export type { SaveResult, SaveAction } from "./save-form";
 export { Card, CardHeader, CardBody, DescList, DescItem } from "./card";
 export { Table, THead, TBody, TR, TH, TD } from "./table";
 export { StatStrip, StatItem } from "./stat";
