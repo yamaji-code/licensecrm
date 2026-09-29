@@ -21,7 +21,7 @@ export function Table({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className={`w-full ${minWidth} border-collapse text-sm`}>
+      <table className={`w-full ${minWidth} border-collapse text-[13px]`}>
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         {children}
       </table>
@@ -65,7 +65,7 @@ export function TH({ numeric, className, children, ...rest }: CellProps) {
     <th
       scope="col"
       className={[
-        "px-4 py-2 font-medium whitespace-nowrap",
+        "px-3 py-1.5 font-medium whitespace-nowrap",
         numeric ? "text-right tabular-nums" : "text-left",
         className,
       ]
@@ -82,7 +82,7 @@ export function TD({ numeric, className, children, ...rest }: CellProps) {
   return (
     <td
       className={[
-        "px-4 py-2.5 align-middle text-ink",
+        "px-3 py-1.5 align-middle leading-snug text-ink",
         numeric ? "text-right tabular-nums" : "",
         className,
       ]
