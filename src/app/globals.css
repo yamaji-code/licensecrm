@@ -31,6 +31,15 @@
   /* 罫線。細く薄く（装飾最小の規律） */
   --color-line: #e3e6ee;
 
+  /* サイドバーの面。本文側の brand スケールより彩度を落とした濃紺にして、
+   * ナビゲーションと作業領域の境目をはっきりさせる。
+   * brand-800 をそのまま使うと青紫が強く、濃くしても締まって見えないため別に持つ。 */
+  --color-sidebar: #0f1829;
+  --color-sidebar-line: #26314b;
+  --color-sidebar-hover: #1b2740;
+  --color-sidebar-ink: #d9dfeb;
+  --color-sidebar-muted: #8b94a6;
+
   /* 状態色。用途を固定して「赤の乱発」を防ぐ:
    * danger = 期限切れ・破壊的操作のみ / warn = 注意喚起 / ok = 完了・達成 */
   --color-danger: #c0332b;

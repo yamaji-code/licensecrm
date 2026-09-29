@@ -152,7 +152,7 @@ export default function Nav({
         } ${
           current
             ? "bg-brand-600 font-medium text-white ring-1 ring-brand-400/70"
-            : "text-brand-100/90 hover:bg-brand-700 hover:text-white"
+            : "text-sidebar-ink hover:bg-sidebar-hover hover:text-white"
         }`}
       >
         <Icon className="h-[18px] w-[18px] shrink-0" />
@@ -166,16 +166,16 @@ export default function Nav({
       {NAV_GROUPS.map((group) => (
         <div key={group.label} className="mb-3 last:mb-0">
           {collapsed ? (
-            <div className="mx-2 mb-2 border-t border-brand-700" />
+            <div className="mx-2 mb-2 border-t border-sidebar-line" />
           ) : (
-            <p className="px-3 pb-1 text-[10px] font-medium tracking-wider text-brand-300/80">
+            <p className="px-3 pb-1 text-[10px] font-medium tracking-wider text-sidebar-muted">
               {group.label}
             </p>
           )}
           <div className="space-y-px">{group.items.map(renderItem)}</div>
         </div>
       ))}
-      <div className="mt-2 border-t border-brand-700 pt-2">
+      <div className="mt-2 border-t border-sidebar-line pt-2">
         {renderItem(HELP_ITEM)}
       </div>
     </nav>
