@@ -81,7 +81,7 @@ export function AppShell({
   const renderSidebar = (isCollapsed: boolean) => (
     <>
       <div
-        className={`border-b border-brand-700 py-4 ${
+        className={`border-b border-sidebar-line py-4 ${
           isCollapsed ? "px-2" : "px-5"
         }`}
       >
@@ -91,7 +91,7 @@ export function AppShell({
             title="XKitchen ライセンス営業 CRM"
             className="flex justify-center"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-700">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-hover">
               <Image
                 src="/brand/mark-white.svg"
                 alt="XKitchen"
@@ -106,7 +106,7 @@ export function AppShell({
         ) : (
           <>
             <Link href="/" className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-700">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-hover">
                 <Image
                   src="/brand/mark-white.svg"
                   alt=""
@@ -121,7 +121,7 @@ export function AppShell({
                 <span className="block text-sm font-medium leading-tight text-white">
                   X Kitchen
                 </span>
-                <span className="block text-[11px] leading-tight text-brand-200/80">
+                <span className="block text-[11px] leading-tight text-sidebar-muted">
                   ライセンス営業 CRM
                 </span>
               </span>
@@ -133,7 +133,7 @@ export function AppShell({
       <Nav onNavigate={() => setOpen(false)} collapsed={isCollapsed} />
 
       <div
-        className={`border-t border-brand-700 py-3 ${
+        className={`border-t border-sidebar-line py-3 ${
           isCollapsed ? "px-2" : "px-5"
         }`}
       >
@@ -142,7 +142,7 @@ export function AppShell({
             <button
               type="submit"
               title={`${email} / ログアウト`}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-brand-200/80 transition-colors hover:bg-brand-700 hover:text-white"
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-muted transition-colors hover:bg-sidebar-hover hover:text-white"
             >
               <span className="sr-only">ログアウト</span>
               <svg
@@ -161,13 +161,13 @@ export function AppShell({
           </form>
         ) : (
           <>
-            <p className="truncate text-[11px] text-brand-200/80" title={email}>
+            <p className="truncate text-[11px] text-sidebar-muted" title={email}>
               {email}
             </p>
             <form action="/auth/signout" method="post">
               <button
                 type="submit"
-                className="mt-1.5 text-[11px] text-brand-200/80 underline underline-offset-2 transition-colors hover:text-white"
+                className="mt-1.5 text-[11px] text-sidebar-muted underline underline-offset-2 transition-colors hover:text-white"
               >
                 ログアウト
               </button>
@@ -183,7 +183,7 @@ export function AppShell({
     <div className="flex h-[100dvh] overflow-hidden">
       {/* 広い画面の固定サイドバー。« で折りたたむと本文を広く使える */}
       <aside
-        className={`relative hidden shrink-0 flex-col bg-brand-800 transition-[width] lg:flex ${
+        className={`relative hidden shrink-0 flex-col bg-sidebar transition-[width] lg:flex ${
           collapsed ? "w-16" : "w-56"
         }`}
       >
@@ -193,7 +193,7 @@ export function AppShell({
           onClick={toggleCollapsed}
           aria-expanded={!collapsed}
           title={collapsed ? "サイドバーを広げる" : "サイドバーを折りたたむ"}
-          className="absolute right-0 top-4 flex h-7 w-6 items-center justify-center rounded-l-md bg-brand-600 text-brand-100 transition-colors hover:bg-brand-500 hover:text-white"
+          className="absolute right-0 top-4 flex h-7 w-6 items-center justify-center rounded-l-md bg-sidebar-hover text-sidebar-ink transition-colors hover:bg-brand-600 hover:text-white"
         >
           <span className="sr-only">
             {collapsed ? "サイドバーを広げる" : "サイドバーを折りたたむ"}
@@ -230,7 +230,7 @@ export function AppShell({
             role="dialog"
             aria-modal="true"
             aria-label="メニュー"
-            className="absolute inset-y-0 left-0 flex w-64 max-w-[85%] flex-col bg-brand-800 shadow-pop"
+            className="absolute inset-y-0 left-0 flex w-64 max-w-[85%] flex-col bg-sidebar shadow-pop"
           >
             {renderSidebar(false)}
           </div>
