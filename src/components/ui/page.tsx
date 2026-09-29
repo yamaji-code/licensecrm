@@ -13,12 +13,14 @@ export function PageShell({
   children: ReactNode;
   width?: "default" | "wide" | "narrow";
 }) {
+  // 既定は画面を広く使う（一覧・表を詰めて見せるため）。
+  // narrow は入力フォーム用、wide はボードのように端まで使う画面用。
   const max =
     width === "wide"
       ? "max-w-none"
       : width === "narrow"
         ? "max-w-2xl"
-        : "max-w-6xl";
+        : "max-w-[1600px]";
   return (
     <div className={`mx-auto w-full ${max} px-4 py-6 sm:px-6 lg:px-8 lg:py-8`}>
       {children}

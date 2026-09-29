@@ -25,6 +25,8 @@ import {
   PageHeader,
   PageShell,
   SectionTitle,
+  StatItem,
+  StatStrip,
   TBody,
   TD,
   TH,
@@ -218,6 +220,7 @@ export default async function Dashboard() {
         <Card>
           <CardHeader
             title="期限が近いタスク"
+            description="期限が近い順に5件。クリックせずここで状況と期日だけ確認できます。"
             actions={
               <Link
                 href="/tasks"
@@ -258,89 +261,90 @@ export default async function Dashboard() {
         </Card>
       </section>
 
-      {/* KPI: 数字は1つのまとまりに圧縮し、縦に積み上げない */}
+      {/* KPI: 数字は1本の帯にまとめ、定義は帯の下に一度だけ書く（カードを数だけ並べない） */}
       <section className="mb-8">
         <SectionTitle>{quarterLabel} の実績</SectionTitle>
-        <Card>
-          <div className="grid grid-cols-2 divide-line sm:grid-cols-4 sm:divide-x">
-            <div className="px-5 py-4">
-              <p className="text-xs text-ink-soft">商談実施</p>
-              <p className="mt-1 text-2xl font-medium text-ink">
-                {meetingsCount}
-                <span className="ml-1 text-sm font-normal text-ink-faint">
-                  / {targets.meetings} 件
-                </span>
-              </p>
-              <ProgressBar
-                value={meetingsCount}
-                target={targets.meetings}
-                className="mt-2 h-1.5 w-full"
-              />
-            </div>
-            <div className="px-5 py-4">
-              <p className="text-xs text-ink-soft">契約</p>
-              <p className="mt-1 text-2xl font-medium text-ink">
-                {contractsCount}
-                <span className="ml-1 text-sm font-normal text-ink-faint">
-                  / {targets.contracts} 件
-                </span>
-              </p>
-              <ProgressBar
-                value={contractsCount}
-                target={targets.contracts}
-                className="mt-2 h-1.5 w-full"
-              />
-            </div>
-            <div className="px-5 py-4">
-              <p className="text-xs text-ink-soft">速報成約率</p>
-              <p className="mt-1 text-2xl font-medium text-ink">
-                {flashRateLabel}
-              </p>
-              <p className="mt-1 text-[11px] leading-relaxed text-ink-faint">
-                当Q契約 ÷ 当Q商談の暫定値。契約は前Q以前に商談実施した案件を含むことがあります。
-              </p>
-            </div>
-            <div className="px-5 py-4">
-              <p className="text-xs text-ink-soft">コホート成約率</p>
-              <p className="mt-1 text-2xl font-medium text-ink">
-                {cohortRateLabel}
-              </p>
-              <p className="mt-1 text-[11px] leading-relaxed text-ink-faint">
-                当Q商談到達 {meetingsCount} 件中、契約到達 {cohortContractCount}{" "}
-                件（追跡中・Q序盤は低く出ます）。
-              </p>
-            </div>
-          </div>
-        </Card>
+        <StatStrip
+          note={
+            <>
+              商談実施・契約は当四半期に到達した件数（ステージ到達ベース）。速報成約率 =
+              当Q契約 ÷ 当Q商談の暫定値で、契約は前Q以前に商談実施した案件を含むことがあります。コホート成約率
+              = 当Q商談到達 {meetingsCount} 件のうち契約到達 {cohortContractCount}{" "}
+              件（追跡中のためQ序盤は低く出ます）。
+            </>
+          }
+        >
+          <StatItem
+            label="商談実施"
+            value={meetingsCount}
+            sub={`/ ${targets.meetings} 件`}
+            tone={meetingsCount >= targets.meetings ? "ok" : "warn"}
+          />
+          <StatItem
+            label="契約"
+            value={contractsCount}
+            sub={`/ ${targets.contracts} 件`}
+            tone={contractsCount >= targets.contracts ? "ok" : "warn"}
+          />
+          <StatItem label="速報成約率" value={flashRateLabel} />
+          <StatItem label="コホート成約率" value={cohortRateLabel} />
+          <StatItem label="取引先" value={companyCount ?? 0} sub="社" />
+          <StatItem label="未完了タスク" value={taskOpenCount ?? 0} sub="件" />
+        </StatStrip>
 
+        {/* 目標に対する位置は帯だけだと読み取りにくいので、進捗バーは残して下に添える */}
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-card border border-line bg-white px-5 py-3 shadow-card">
+            <div className="flex items-baseline justify-between text-xs text-ink-soft">
+              <span>商談実施の進捗</span>
+              <span className="tabular-nums">
+                {meetingsCount} / {targets.meetings} 件
+              </span>
+            </div>
+            <ProgressBar
+              value={meetingsCount}
+              target={targets.meetings}
+              className="mt-2 h-1.5 w-full"
+            />
+          </div>
+          <div className="rounded-card border border-line bg-white px-5 py-3 shadow-card">
+            <div className="flex items-baseline justify-between text-xs text-ink-soft">
+              <span>契約の進捗</span>
+              <span className="tabular-nums">
+                {contractsCount} / {targets.contracts} 件
+              </span>
+            </div>
+            <ProgressBar
+              value={contractsCount}
+              target={targets.contracts}
+              className="mt-2 h-1.5 w-full"
+            />
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-3 text-xs">
           <Link
             href="/companies"
-            className="rounded-card border border-line bg-white px-5 py-4 shadow-card transition-colors hover:border-brand-200"
+            className="text-brand-700 transition-colors hover:text-brand-500 hover:underline"
           >
-            <p className="text-xs text-ink-soft">取引先</p>
-            <p className="mt-1 text-2xl font-medium text-ink">
-              {companyCount ?? 0}
-              <span className="ml-1 text-sm font-normal text-ink-faint">社</span>
-            </p>
+            取引先一覧を開く →
           </Link>
           <Link
             href="/tasks"
-            className="rounded-card border border-line bg-white px-5 py-4 shadow-card transition-colors hover:border-brand-200"
+            className="text-brand-700 transition-colors hover:text-brand-500 hover:underline"
           >
-            <p className="text-xs text-ink-soft">未完了タスク</p>
-            <p className="mt-1 text-2xl font-medium text-ink">
-              {taskOpenCount ?? 0}
-              <span className="ml-1 text-sm font-normal text-ink-faint">件</span>
-            </p>
+            タスク一覧を開く →
           </Link>
         </div>
       </section>
 
       {/* チャネル別 */}
       <section className="mt-8">
-        <SectionTitle>チャネル別（全期間・商談到達ベース）</SectionTitle>
         <Card>
+          <CardHeader
+            title="チャネル別"
+            description="全期間・商談到達ベース。獲得チャネルは複数選択できるため、1件の案件が複数行に数えられることがあります。"
+          />
           <Table caption="獲得チャネル別の商談到達・契約到達・成約率">
             <THead>
               <TR className="hover:bg-transparent">
