@@ -179,14 +179,14 @@ export function AppShell({
   );
 
   return (
-    // dvh = モバイルのアドレスバー可変高で下端が隠れるのを防ぐ。
-    // dvh が効かない環境では高さ指定ごと無効になり、枠が中身の高さまで伸びて
-    // ウィンドウ側がスクロールしてしまう（サイドバーが流れて下が余白になる）。
-    // そうならないよう h-screen(100vh) を先に置いて必ず高さが決まるようにする。
-    <div className="flex h-screen h-[100dvh] overflow-hidden bg-surface">
+    // 枠の高さを固定して中だけスクロールさせる作りは、高さ指定が効かない環境で
+    // 破綻する（ウィンドウごとスクロールしてサイドバーが流れ、下が余白になる）。
+    // ここでは普通にウィンドウをスクロールさせ、サイドバーだけ貼り付ける。
+    // ページの高さ＝中身の高さになるので、余白が生まれる余地がなくなる。
+    <div className="flex min-h-screen bg-surface">
       {/* 広い画面の固定サイドバー。« で折りたたむと本文を広く使える */}
       <aside
-        className={`relative hidden h-screen h-[100dvh] shrink-0 flex-col bg-sidebar transition-[width] lg:flex ${
+        className={`sticky top-0 hidden h-screen shrink-0 flex-col self-start bg-sidebar transition-[width] lg:flex ${
           collapsed ? "w-16" : "w-56"
         }`}
       >
@@ -242,7 +242,7 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* 狭い画面の上部バー */}
-        <header className="flex shrink-0 items-center gap-3 border-b border-line bg-white px-4 py-2.5 lg:hidden">
+        <header className="sticky top-0 z-30 flex shrink-0 items-center gap-3 border-b border-line bg-white px-4 py-2.5 lg:hidden">
           <button
             type="button"
             onClick={() => setOpen(true)}
@@ -274,7 +274,7 @@ export function AppShell({
           </Link>
         </header>
 
-        <main className="min-w-0 flex-1 overflow-y-auto bg-surface">
+        <main className="min-w-0 flex-1 bg-surface">
           {children}
         </main>
       </div>

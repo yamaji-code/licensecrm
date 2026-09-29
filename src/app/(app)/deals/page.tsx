@@ -216,8 +216,10 @@ export default async function DealsPage({
         isTable
           ? "mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
           : // ボードは画面高さに固定し、ヘッダー/KPIバーは動かさず、
-            // 案件の列だけを内側でスクロールさせる
-            "flex h-full flex-col px-4 pb-4 pt-5 sm:px-6"
+            // 案件の列だけを内側でスクロールさせる。
+            // 枠の高さに頼る h-full ではなく、ここで画面高さを自分で決める
+            // （枠側はウィンドウスクロールに変わったため）
+            "flex h-screen flex-col px-4 pb-4 pt-5 sm:px-6"
       }
     >
       <header className="mb-4 shrink-0">
