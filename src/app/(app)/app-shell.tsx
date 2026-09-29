@@ -91,30 +91,41 @@ export function AppShell({
             title="XKitchen ライセンス営業 CRM"
             className="flex justify-center"
           >
-            <Image
-              src="/icon.png"
-              alt="XKitchen"
-              width={32}
-              height={32}
-              priority
-              unoptimized
-              className="h-7 w-7 rounded"
-            />
-          </Link>
-        ) : (
-          <>
-            <Link href="/" className="inline-block">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-700">
               <Image
-                src="/brand/logo-white.svg"
+                src="/brand/mark-white.svg"
                 alt="XKitchen"
-                width={223}
+                width={38}
                 height={36}
                 priority
                 unoptimized
-                className="h-6 w-auto"
+                className="h-5 w-5"
               />
+            </span>
+          </Link>
+        ) : (
+          <>
+            <Link href="/" className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-700">
+                <Image
+                  src="/brand/mark-white.svg"
+                  alt=""
+                  width={38}
+                  height={36}
+                  priority
+                  unoptimized
+                  className="h-5 w-5"
+                />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium leading-tight text-white">
+                  X Kitchen
+                </span>
+                <span className="block text-[11px] leading-tight text-brand-200/80">
+                  ライセンス営業 CRM
+                </span>
+              </span>
             </Link>
-            <p className="mt-1.5 text-[11px] text-brand-200/80">ライセンス営業 CRM</p>
           </>
         )}
       </div>
