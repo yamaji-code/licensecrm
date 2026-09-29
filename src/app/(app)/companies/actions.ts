@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { SaveResult } from "@/components/ui";
 import {
   COMPANY_STATUS,
   CONTACT_DECISION_ROLE,
@@ -190,4 +191,25 @@ export async function updateContact(formData: FormData) {
 
   revalidatePath(`/companies/${companyId}`);
   redirect(`/companies/${companyId}`);
+}
+
+
+/*
+ * 案件詳細の取引先カードはその場で保存する（画面が切り替わらない）ため、
+ * 保存できたかが分からなかった。結果を返して画面に出せるようにする。
+ */
+export async function updateCompanyDetailsWithResult(
+  _prev: SaveResult,
+  formData: FormData,
+): Promise<SaveResult> {
+  try {
+    await updateCompanyDetails(formData);
+    return { ok: true, message: "保存しました", at: Date.now() };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "保存できませんでした",
+      at: Date.now(),
+    };
+  }
 }

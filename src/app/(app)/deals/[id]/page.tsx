@@ -17,12 +17,12 @@ import {
   changeDealStage,
   deleteDealContactEntry,
   updateDeal,
-  updateDealChannel,
+  updateDealChannelWithResult,
   updateDealContactEntry,
-  updateDealCompany,
-  updateDealGenre,
+  updateDealCompanyWithResult,
+  updateDealGenreWithResult,
 } from "../actions";
-import { updateCompanyDetails } from "../../companies/actions";
+import { updateCompanyDetailsWithResult } from "../../companies/actions";
 import {
   quickAddNextAction,
   toggleTaskDone,
@@ -40,6 +40,7 @@ import {
   PageHeader,
   PageShell,
   Select,
+  SaveForm,
   SubmitButton,
   Textarea,
 } from "@/components/ui";
@@ -100,11 +101,21 @@ export default async function DealDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ view?: string | string[] }>;
+  searchParams: Promise<{
+    view?: string | string[];
+    saved?: string | string[];
+  }>;
 }) {
   const { id } = await params;
-  const { view } = await searchParams;
+  const { view, saved } = await searchParams;
   const showDone = (Array.isArray(view) ? view[0] : view) === "done";
+  // 保存して戻ってきたときだけ出す合図（?saved=deal / ?saved=mtg）
+  const savedLabel =
+    saved === "mtg"
+      ? "MTG LOGを保存しました"
+      : saved === "deal"
+        ? "案件情報を保存しました"
+        : null;
 
   const supabase = await createClient();
 
@@ -269,6 +280,12 @@ export default async function DealDetailPage({
           </Link>
         }
       />
+
+      {savedLabel && (
+        <div className="mb-6">
+          <Banner tone="ok" title={savedLabel} />
+        </div>
+      )}
 
       {secondaryError && (
         <div className="mb-6">
@@ -765,7 +782,11 @@ export default async function DealDetailPage({
                   並び順はサヤカさん指定（会社名→ターゲットブランド→法人URL→tier→
                   獲得チャネル→リード創出→ジャンル→親会社）。紹介元パートナーは削除済み。 */}
               {deal.company_id ? (
-              <form action={updateCompanyDetails} className="space-y-4">
+              <SaveForm
+                action={updateCompanyDetailsWithResult}
+                submitVariant="secondary"
+                submitSize="sm"
+              >
                 <input type="hidden" name="id" value={deal.company_id} />
                 <input type="hidden" name="deal_id" value={deal.id} />
                 <Field htmlFor="name" label="会社名" required>
@@ -820,13 +841,15 @@ export default async function DealDetailPage({
                     defaultValue={deal.companies?.parent_company ?? ""}
                   />
                 </Field>
-                <SubmitButton variant="secondary" size="sm" pendingLabel="保存中…">
-                  保存
-                </SubmitButton>
-              </form>
+              </SaveForm>
               ) : (
                 /* 取引先は任意項目。未設定のうちは、ここから既存の取引先を選んで紐づける */
-                <form action={updateDealCompany} className="space-y-2">
+                <SaveForm
+                  action={updateDealCompanyWithResult}
+                  submitVariant="secondary"
+                  submitSize="sm"
+                  className="space-y-2"
+                >
                   <input type="hidden" name="id" value={deal.id} />
                   <Field
                     htmlFor="company_id_card"
@@ -842,14 +865,13 @@ export default async function DealDetailPage({
                       ))}
                     </Select>
                   </Field>
-                  <SubmitButton variant="secondary" size="sm" pendingLabel="保存中…">
-                    保存
-                  </SubmitButton>
-                </form>
+                </SaveForm>
               )}
 
-              <form
-                action={updateDealChannel}
+              <SaveForm
+                action={updateDealChannelWithResult}
+                submitVariant="secondary"
+                submitSize="sm"
                 className="space-y-2 border-t border-line pt-4"
               >
                 <input type="hidden" name="id" value={deal.id} />
@@ -877,14 +899,13 @@ export default async function DealDetailPage({
                     ))}
                   </div>
                 </fieldset>
-                <SubmitButton variant="secondary" size="sm" pendingLabel="保存中…">
-                  保存
-                </SubmitButton>
-              </form>
+              </SaveForm>
 
-              <form
-                action={updateDealGenre}
-                className="flex items-end gap-2 border-t border-line pt-4"
+              <SaveForm
+                action={updateDealGenreWithResult}
+                submitVariant="secondary"
+                submitSize="sm"
+                className="flex flex-wrap items-end gap-2 border-t border-line pt-4"
               >
                 <input type="hidden" name="id" value={deal.id} />
                 <div className="flex-1">
@@ -904,10 +925,7 @@ export default async function DealDetailPage({
                     </Select>
                   </Field>
                 </div>
-                <SubmitButton variant="secondary" size="sm" pendingLabel="保存中…">
-                  保存
-                </SubmitButton>
-              </form>
+              </SaveForm>
             </CardBody>
           </Card>
 

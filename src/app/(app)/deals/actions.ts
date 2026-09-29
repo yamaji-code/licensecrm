@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { SaveResult } from "@/components/ui";
 import {
   DEAL_CHANNEL,
   DEAL_STAGE,
@@ -219,7 +220,47 @@ export async function updateDeal(formData: FormData) {
   }
 
   revalidatePath(`/deals/${id}`);
-  redirect(`/deals/${id}`);
+  // 遷移してしまうので、遷移先で「保存できた」と分かるように印をつける
+  redirect(`/deals/${id}?saved=deal`);
+}
+
+/*
+ * その場で保存する（画面が切り替わらない）フォーム向けのラッパー。
+ * 画面遷移が起きないと保存できたか分からないため、結果を返して画面に出す。
+ * redirect する updateDeal / updateMeeting は遷移そのものが合図になるので対象外。
+ */
+async function toSaveResult(run: () => Promise<void>): Promise<SaveResult> {
+  try {
+    await run();
+    return { ok: true, message: "保存しました", at: Date.now() };
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "保存できませんでした",
+      at: Date.now(),
+    };
+  }
+}
+
+export async function updateDealChannelWithResult(
+  _prev: SaveResult,
+  formData: FormData,
+): Promise<SaveResult> {
+  return toSaveResult(() => updateDealChannel(formData));
+}
+
+export async function updateDealGenreWithResult(
+  _prev: SaveResult,
+  formData: FormData,
+): Promise<SaveResult> {
+  return toSaveResult(() => updateDealGenre(formData));
+}
+
+export async function updateDealCompanyWithResult(
+  _prev: SaveResult,
+  formData: FormData,
+): Promise<SaveResult> {
+  return toSaveResult(() => updateDealCompany(formData));
 }
 
 // 取引先カードの「獲得チャネル」だけを単独で更新する（他の項目は触らないミニフォーム用）
