@@ -3,7 +3,7 @@ import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { updateCompanyDetails } from "../actions";
+import { updateCompanyDetailsWithResult } from "../actions";
 import {
   Banner,
   ButtonLink,
@@ -17,8 +17,8 @@ import {
   Input,
   PageHeader,
   PageShell,
+  SaveForm,
   Select,
-  SubmitButton,
 } from "@/components/ui";
 import {
   COMPANY_STATUS,
@@ -100,7 +100,11 @@ export default async function CompanyDetailPage({
           <Card>
             <CardHeader title="基本情報" />
             <CardBody className="space-y-5">
-              <form action={updateCompanyDetails} className="space-y-4">
+              <SaveForm
+                action={updateCompanyDetailsWithResult}
+                submitVariant="secondary"
+                submitSize="sm"
+              >
                 <input type="hidden" name="id" value={company.id} />
                 <input type="hidden" name="name" value={company.name} />
                 <Field htmlFor="tier" label="tier">
@@ -146,15 +150,32 @@ export default async function CompanyDetailPage({
                     defaultValue={company.parent_company ?? ""}
                   />
                 </Field>
-                <SubmitButton variant="secondary" size="sm" pendingLabel="保存中…">
-                  保存
-                </SubmitButton>
-              </form>
+                <Field htmlFor="phone" label="電話番号">
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    defaultValue={company.phone ?? ""}
+                    placeholder="03-1234-5678"
+                  />
+                </Field>
+                <Field htmlFor="industry" label="業種">
+                  <Input
+                    id="industry"
+                    name="industry"
+                    defaultValue={company.industry ?? ""}
+                  />
+                </Field>
+                <Field htmlFor="address" label="住所">
+                  <Input
+                    id="address"
+                    name="address"
+                    defaultValue={company.address ?? ""}
+                  />
+                </Field>
+              </SaveForm>
 
               <DescList>
-                <DescItem label="業種">{company.industry ?? "—"}</DescItem>
-                <DescItem label="電話番号">{company.phone ?? "—"}</DescItem>
-                <DescItem label="住所">{company.address ?? "—"}</DescItem>
                 {company.note && (
                   <DescItem label="メモ">
                     <span className="whitespace-pre-wrap">{company.note}</span>
