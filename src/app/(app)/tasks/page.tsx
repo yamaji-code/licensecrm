@@ -178,7 +178,11 @@ function TaskDetail({
         </p>
         <DoneToggle task={task} action={action} />
       </div>
-      <SaveForm action={updateTaskWithResult} className="space-y-3">
+      <SaveForm
+        action={updateTaskWithResult}
+        closeDialogOnSuccess
+        className="space-y-3"
+      >
         <input type="hidden" name="id" value={task.id} />
         <TaskFields task={task} />
       </SaveForm>

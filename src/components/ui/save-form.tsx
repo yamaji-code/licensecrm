@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import type { ReactNode } from "react";
 import { SubmitButton } from "./submit-button";
@@ -52,6 +52,7 @@ export function SaveForm({
   pendingLabel = "保存中…",
   submitVariant,
   submitSize,
+  closeDialogOnSuccess = false,
   className = "space-y-4",
 }: {
   action: SaveAction;
@@ -61,15 +62,30 @@ export function SaveForm({
   /** 既存画面のボタンの見た目に合わせたいときに渡す */
   submitVariant?: ButtonVariant;
   submitSize?: ButtonSize;
+  /**
+   * ポップアップ（<dialog>）の中で使うとき、保存に成功したら自動で閉じる。
+   * 開いたままだと一覧が隠れて邪魔になるため。失敗時は閉じない（やり直せるように）。
+   */
+  closeDialogOnSuccess?: boolean;
   className?: string;
 }) {
   const [state, formAction] = useActionState<SaveResult, FormData>(
     action,
     null,
   );
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // 「保存しました」が一瞬見えてから閉じる（閉じるだけだと保存できたか分からないため）
+  useEffect(() => {
+    if (!closeDialogOnSuccess || !state?.ok) return;
+    const timer = setTimeout(() => {
+      formRef.current?.closest("dialog")?.close();
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [closeDialogOnSuccess, state]);
 
   return (
-    <form action={formAction} className={className}>
+    <form ref={formRef} action={formAction} className={className}>
       {children}
       <div className="flex flex-wrap items-center gap-3">
         <SubmitButton
