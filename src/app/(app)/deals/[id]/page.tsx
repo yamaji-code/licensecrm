@@ -79,6 +79,7 @@ type DealDetail = Deal & {
         | "website"
         | "lead_source"
         | "parent_company"
+        | "phone"
       >
     | null;
   genres: { name: string } | null;
@@ -133,7 +134,7 @@ export default async function DealDetailPage({
       .from("deals")
       .select(
         `*, companies (
-          name, target_brand, tier, website, lead_source, parent_company
+          name, target_brand, tier, website, lead_source, parent_company, phone
         ), genres ( name )`,
       )
       .eq("id", id)
@@ -839,6 +840,15 @@ export default async function DealDetailPage({
                     id="parent_company"
                     name="parent_company"
                     defaultValue={deal.companies?.parent_company ?? ""}
+                  />
+                </Field>
+                <Field htmlFor="company_phone" label="電話番号">
+                  <Input
+                    id="company_phone"
+                    name="phone"
+                    type="tel"
+                    defaultValue={deal.companies?.phone ?? ""}
+                    placeholder="03-1234-5678"
                   />
                 </Field>
               </SaveForm>

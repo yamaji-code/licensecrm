@@ -62,7 +62,8 @@ export async function createCompany(formData: FormData) {
   redirect("/companies");
 }
 
-// 取引先カード（法人名・ターゲットブランド・tier・法人URL・リード創出・親会社）の更新。
+// 取引先カード（法人名・ターゲットブランド・tier・法人URL・リード創出・親会社・
+// 電話番号・業種・住所）の更新。
 // 会社詳細ページ・案件詳細ページの両方から呼ぶため、deal_id が渡された時だけその案件も再検証する。
 export async function updateCompanyDetails(formData: FormData) {
   const id = str(formData.get("id"));
@@ -86,6 +87,15 @@ export async function updateCompanyDetails(formData: FormData) {
       website: str(formData.get("website")),
       lead_source: str(formData.get("lead_source")),
       parent_company: str(formData.get("parent_company")),
+      // 案件詳細の取引先カードにはこの3項目が無いので、送られてきた時だけ更新する
+      // （無条件に書くと、案件側から保存したときに空で上書きしてしまう）
+      ...(formData.has("phone") ? { phone: str(formData.get("phone")) } : {}),
+      ...(formData.has("industry")
+        ? { industry: str(formData.get("industry")) }
+        : {}),
+      ...(formData.has("address")
+        ? { address: str(formData.get("address")) }
+        : {}),
     })
     .eq("id", id);
 
