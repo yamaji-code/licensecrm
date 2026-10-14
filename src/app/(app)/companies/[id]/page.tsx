@@ -106,7 +106,14 @@ export default async function CompanyDetailPage({
                 submitSize="sm"
               >
                 <input type="hidden" name="id" value={company.id} />
-                <input type="hidden" name="name" value={company.name} />
+                <Field htmlFor="name" label="会社名" required>
+                  <Input
+                    id="name"
+                    name="name"
+                    required
+                    defaultValue={company.name}
+                  />
+                </Field>
                 <Field htmlFor="tier" label="tier">
                   <Select
                     id="tier"
