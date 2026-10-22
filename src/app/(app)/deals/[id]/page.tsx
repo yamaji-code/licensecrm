@@ -8,6 +8,7 @@ import Link from "next/link";
 import { STAGE_BADGE_STYLE } from "@/components/stage-badge";
 import { MarkdownContent } from "@/components/markdown-content";
 import { displayDealTitle } from "../board-card";
+import { DeleteDealButton } from "./delete-deal";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { jstDateString } from "@/lib/date";
@@ -1124,6 +1125,27 @@ export default async function DealDetailPage({
                 }
               />
             )}
+          </Card>
+
+          {/* 取り消せない操作なので、いちばん下に1つだけ置く（誤って押さない位置） */}
+          <Card>
+            <CardHeader
+              title="この案件を削除"
+              description="元に戻せません。消す前に、紐づくタスクやMTG LOGの扱いを決めてください。"
+            />
+            <CardBody>
+              <DeleteDealButton
+                dealId={deal.id}
+                dealTitle={displayDealTitle(deal.title, deal.companies?.name)}
+                counts={{
+                  tasks: openTasks.length + (doneTaskCount ?? 0),
+                  meetings: meetings.length,
+                  knowledge: relatedKnowledge.length,
+                  contacts: dealContactEntries.length,
+                  stageEvents: stageEvents.length,
+                }}
+              />
+            </CardBody>
           </Card>
         </div>
       </div>
