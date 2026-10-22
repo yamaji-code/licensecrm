@@ -263,6 +263,34 @@ export async function updateDealCompanyWithResult(
   return toSaveResult(() => updateDealCompany(formData));
 }
 
+/*
+ * 案件を削除する。取り消せないので、確認は呼び出し側（DeleteDealButton）で行う。
+ *
+ * 外部キーの設定により、消える側と残る側が分かれる:
+ *   一緒に消える … stage_events（変更履歴）/ deal_contacts / deal_contact_entries（担当者）
+ *   残るが紐づきが外れる … tasks / meetings / knowledge_cards / referrals /
+ *                          approach_targets.deal_id（アプローチリストの案件化リンク）
+ * 確認画面でこの違いを伝えているので、ここでは追加の後始末はしない。
+ */
+export async function deleteDeal(formData: FormData) {
+  const id = str(formData.get("id"));
+  if (!id) {
+    throw new Error("案件IDが不正です。");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("deals").delete().eq("id", id);
+  if (error) {
+    throw new Error(`削除に失敗しました: ${error.message}`);
+  }
+
+  revalidatePath("/deals");
+  revalidatePath("/tasks");
+  revalidatePath("/meetings");
+  revalidatePath("/approach");
+  redirect("/deals?deleted=1");
+}
+
 // 取引先カードの「獲得チャネル」だけを単独で更新する（他の項目は触らないミニフォーム用）
 export async function updateDealChannel(formData: FormData) {
   const id = str(formData.get("id"));

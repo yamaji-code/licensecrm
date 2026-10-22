@@ -70,9 +70,11 @@ export default async function DealsPage({
     genre?: string | string[];
     advanced?: string | string[];
     to?: string | string[];
+    deleted?: string | string[];
   }>;
 }) {
-  const { stage, view, expand, genre, advanced, to } = await searchParams;
+  const { stage, view, expand, genre, advanced, to, deleted } =
+    await searchParams;
   // 表示モード: 既定はボード。table を指定したときだけ表形式。
   const isTable = view === "table";
   // 表示密度: cookie 保存（トグルは Server Action setBoardDensity）
@@ -266,6 +268,16 @@ export default async function DealsPage({
           </div>
         )}
       </header>
+
+      {deleted && (
+
+        <div className="mb-4">
+
+          <Banner tone="ok" title="案件を削除しました" />
+
+        </div>
+
+      )}
 
       {error && (
         <div className="mb-4 shrink-0">
