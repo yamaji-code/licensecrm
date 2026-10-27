@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
+import { useLayoutEffect, useRef, useState, type ChangeEvent } from "react";
 import { uploadMeetingImage } from "./actions";
 import { TableBuilder } from "./table-builder";
 import type { MeetingSnippet } from "@/lib/types";
@@ -28,6 +28,20 @@ export function MtgLogEditor({
   const [showTableBuilder, setShowTableBuilder] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /*
+   * 入力欄を中身の高さに合わせて伸ばす。
+   * 高さ固定だと、長いログでは欄の中だけがスクロールして全体を見渡せない
+   * （書いた内容を上下に行き来しながら直すのがやりにくい）。
+   * 画面を越えるほど長いときだけ、欄の中でスクロールさせる（max-h）。
+   */
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    // いったん縮めてから測らないと、消したときに高さが戻らない
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
 
   function insertAtCursor(text: string) {
     const el = textareaRef.current;
@@ -141,7 +155,7 @@ export function MtgLogEditor({
         ref={textareaRef}
         id={name}
         name={name}
-        rows={14}
+        className="min-h-[18rem] max-h-[70vh] resize-none leading-relaxed"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="話した内容・決めたこと。表は「表を挿入」、写真は「画像を添付」から入れられます。"
