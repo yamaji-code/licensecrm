@@ -8,6 +8,7 @@ import {
   type TaskPriority,
   type Tier,
 } from "@/lib/types";
+import { normalizeCompanyName } from "@/lib/company-name";
 import { advanceDealStage } from "./actions";
 import { Chip } from "@/components/ui";
 
@@ -37,19 +38,22 @@ export type DealNextAction = {
  * 案件名から、末尾の「（会社名）」を落として表示する。
  * 旧CRMからの移行データは案件名に会社名が入っており、カード内で会社名が2回出て
  * 3行に折り返していた（1画面に3枚しか入らない原因）。
- * データは書き換えず表示だけを整える。完全一致のときだけ落とし、少しでも違えば元のまま出す。
+ * データは書き換えず表示だけを整える。
+ *
+ * 突き合わせは normalizeCompanyName を通す。取引先名を「株)○○」へ揃えた一方で
+ * 案件名は「○○（株式会社○○）」のままなので、表記だけを見ると別物になり、
+ * 畳めずに重複が出てしまうため。法人格・記号を落として同じなら畳む。
  */
 export function displayDealTitle(title: string, companyName?: string | null) {
   if (!companyName) return title;
-  const normalize = (s: string) => s.replace(/[\s　]/g, "");
-  const company = normalize(companyName);
+  const company = normalizeCompanyName(companyName);
   if (company === "") return title;
 
   const match = title.match(/^(.*?)[（(]([^（()）]*)[)）]\s*$/);
   if (!match) return title;
 
   const [, head, inside] = match;
-  if (normalize(inside) !== company) return title;
+  if (normalizeCompanyName(inside) !== company) return title;
   const trimmed = head.trim();
   // 「（会社名）」だけの案件名は落とすと空になるので元のまま返す
   return trimmed === "" ? title : trimmed;
