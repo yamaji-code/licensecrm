@@ -1,6 +1,12 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type ChangeEvent } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { uploadMeetingImage } from "./actions";
 import { TableBuilder } from "./table-builder";
 import type { MeetingSnippet } from "@/lib/types";
@@ -35,13 +41,35 @@ export function MtgLogEditor({
    * （書いた内容を上下に行き来しながら直すのがやりにくい）。
    * 画面を越えるほど長いときだけ、欄の中でスクロールさせる（max-h）。
    */
-  useLayoutEffect(() => {
+  const fitHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
     // いったん縮めてから測らないと、消したときに高さが戻らない
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
+  }, []);
+
+  useLayoutEffect(fitHeight, [fitHeight, value]);
+
+  /*
+   * 幅が変わると折り返しが変わるので測り直す。
+   * ウィンドウの拡縮・サイドバーの開閉のほか、裏のタブで開いて幅0のまま
+   * 測ってしまった場合も、表に出た時点でここで直る。
+   * 高さの変化では測り直さない（自分で変えた高さに反応して堂々巡りになるため）。
+   */
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    let lastWidth = -1;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0;
+      if (width === lastWidth) return;
+      lastWidth = width;
+      fitHeight();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fitHeight]);
 
   function insertAtCursor(text: string) {
     const el = textareaRef.current;
