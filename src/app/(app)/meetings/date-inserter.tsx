@@ -3,11 +3,7 @@
 import { useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui";
 import { addDays, jstDateString } from "@/lib/date";
-
-/** 2026-11-12 → 2026/11/12。1年後に見返しても分かるよう、年から入れる */
-export function formatInsertedDate(dateStr: string): string {
-  return dateStr.replaceAll("-", "/");
-}
+import { formatDateMention } from "@/lib/date-mention";
 
 const INPUT_CLASS =
   "h-8 rounded border border-line bg-white px-1.5 text-xs text-ink " +
@@ -16,8 +12,8 @@ const INPUT_CLASS =
 /**
  * 要旨に日付を入れるための小さなパネル。「@」を打つか「日付を挿入」で開く。
  *
- * MTG LOG・call・memo は「11/12に再連絡」のように月日だけで書かれがちで、
- * 1年後に見返すと何年の話か分からなくなる。年を含む形で入れられるようにする。
+ * 入る形は @2026/11/10（Tue）。月日だけで書くと1年後に見返して何年の話か
+ * 分からなくなるため、年と曜日まで入れる。
  */
 export function DateInserter({
   onInsert,
@@ -39,7 +35,7 @@ export function DateInserter({
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    onInsert(formatInsertedDate(date));
+    onInsert(formatDateMention(date));
   }
 
   return (
@@ -51,11 +47,11 @@ export function DateInserter({
             type="button"
             variant="secondary"
             size="sm"
-            onClick={() => onInsert(formatInsertedDate(q.value))}
+            onClick={() => onInsert(formatDateMention(q.value))}
           >
             {q.label}
             <span className="ml-1.5 text-ink-faint">
-              {formatInsertedDate(q.value)}
+              {formatDateMention(q.value)}
             </span>
           </Button>
         ))}
@@ -74,7 +70,7 @@ export function DateInserter({
           type="button"
           variant="secondary"
           size="sm"
-          onClick={() => onInsert(formatInsertedDate(date))}
+          onClick={() => onInsert(formatDateMention(date))}
         >
           この日付を挿入
         </Button>
