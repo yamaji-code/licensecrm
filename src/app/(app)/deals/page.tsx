@@ -46,12 +46,10 @@ import {
 // カンバンの列順は STAGE_GROUPS（types.ts）を単一ソースにする。
 const BOARD_COLUMNS: DealStage[] = STAGE_GROUPS.flatMap((g) => [...g.stages]);
 
-// 既定で折りたたむ進行外の列（件数が多く日常業務で常時見る対象ではない）
-const COLLAPSIBLE_COLUMNS: readonly DealStage[] = [
-  "nurturing",
-  "lost",
-  "lost_after_proposal",
-];
+// 折りたたむ列（現在は無し。進行外＝ペンディング/提案前NG/提案後NGも他の列と同じく
+// 常時カードを表示する。折りたたみの仕組み自体は残しているので、必要になれば
+// ここに列を戻すだけで復活できる）
+const COLLAPSIBLE_COLUMNS: readonly DealStage[] = [];
 
 // 列幅。1画面に入る列数を決めるので、増やすときは実機で列数を数えてから変えること。
 const COLUMN_WIDTH = {
