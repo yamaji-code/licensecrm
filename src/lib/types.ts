@@ -20,7 +20,8 @@ export const DEAL_STAGE = {
   negotiating: "条件調整",
   contract: "開発引継ぎ",
   branding: "5店舗獲得",
-  sv_ready: "完了",
+  sv_ready: "拡販",
+  withdrawn: "撤退",
   nurturing: "ペンディング",
   lost: "提案前NG",
   lost_after_proposal: "提案後NG",
@@ -36,6 +37,8 @@ export const DEAL_STAGE_ENTRY: Record<DealStage, string> = {
   contract: "契約を締結した（契約KPIに自動計上）",
   branding: "PB品確認・代替品探索・ブランド共創・原価/マニュアル整備中",
   sv_ready: "SVが加盟店に案内できる状態（ゴール）",
+  // 0024 で追加。進行順には入れていないので、移動はステージ変更かドラッグで手動に行う
+  withdrawn: "取引を終えることが決まった（拡販まで進んだ後の終了）",
   // 進行外の3つは「ステージ名と同じ文言」になっていて条件を説明できていなかったので、
   // 何が起きたらこの列に動かすのかを書く（列ヘッダの説明＝確認ラリー削減が目的のため）
   nurturing: "今は進められないが見込みは残っている。再アプローチ予定日を決めて待つ",
@@ -43,7 +46,9 @@ export const DEAL_STAGE_ENTRY: Record<DealStage, string> = {
   lost_after_proposal: "提案後に見送りが確定した",
 };
 
-// パイプラインの進行順（nurturing / lost 系は進行外のため含めない）
+// パイプラインの進行順。
+// 進行外（nurturing / lost 系）と撤退は含めない。ここに入れると「次へ進む」で
+// 自動的にそこへ送られてしまうため、拡販の次は無し＝ゴールのままにする。
 export const DEAL_STAGE_ORDER: readonly DealStage[] = [
   "approaching",
   "meeting_set",
@@ -57,6 +62,7 @@ export const DEAL_STAGE_ORDER: readonly DealStage[] = [
 // 進行が終了しているステージ（オープン案件の絞り込みに使う）
 export const CLOSED_DEAL_STAGES: readonly DealStage[] = [
   "sv_ready",
+  "withdrawn",
   "nurturing",
   "lost",
   "lost_after_proposal",
@@ -76,7 +82,8 @@ export const STAGE_GROUPS: readonly {
   {
     key: "brand",
     label: "契約・ブランド化",
-    stages: ["contract", "branding", "sv_ready"],
+    // 撤退は進行順の外だが、拡販の次に見たい列なのでここに並べる（サヤカさん指定）
+    stages: ["contract", "branding", "sv_ready", "withdrawn"],
   },
   {
     key: "inactive",
