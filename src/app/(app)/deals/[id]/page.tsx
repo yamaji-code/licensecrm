@@ -951,27 +951,35 @@ export default async function DealDetailPage({
                       <form action={updateDealContactEntry} className="space-y-2">
                         <input type="hidden" name="id" value={c.id} />
                         <input type="hidden" name="deal_id" value={deal.id} />
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        {/* 右レールの幅では2列にすると1項目あたりが狭く、
+                            部署名やメールアドレスが途中で切れて読めない。
+                            縦に積んでカード幅いっぱいを1項目に使う。
+                            それでも入りきらない長さのために title で全文を出す。 */}
+                        <div className="space-y-2">
                           <Input
                             name="name"
                             defaultValue={c.name}
+                            title={c.name}
                             placeholder="名前"
                             required
                           />
                           <Input
                             name="title"
                             defaultValue={c.title ?? ""}
+                            title={c.title ?? ""}
                             placeholder="役職"
                           />
                           <Input
                             name="phone"
                             defaultValue={c.phone ?? ""}
+                            title={c.phone ?? ""}
                             placeholder="電話"
                           />
                           <Input
                             name="email"
                             type="email"
                             defaultValue={c.email ?? ""}
+                            title={c.email ?? ""}
                             placeholder="メール"
                           />
                         </div>
@@ -1009,7 +1017,7 @@ export default async function DealDetailPage({
               >
                 <input type="hidden" name="deal_id" value={deal.id} />
                 <p className="text-sm font-medium text-ink">担当者を追加</p>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-2">
                   <Input name="name" placeholder="名前" required />
                   <Input name="title" placeholder="役職" />
                   <Input name="phone" placeholder="電話" />
