@@ -19,6 +19,8 @@ export const STAGE_BADGE_STYLE: Record<DealStage, string> = {
   contract: "bg-emerald-50 text-emerald-700",
   branding: "bg-emerald-50 text-emerald-700",
   sv_ready: "bg-emerald-100 text-emerald-800",
+  // 終了（マイナス）。失注と同じローズで「もう動かない案件」と分かるようにする
+  withdrawn: "bg-rose-50 text-rose-700",
   // 進行外
   nurturing: "bg-surface text-ink-soft",
   lost: "bg-rose-50 text-rose-700",
